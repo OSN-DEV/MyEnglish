@@ -14,9 +14,9 @@ function App() {
   }
 
   return (
-    <main>
-    <Top />
-    </main>
+    <div class="w-full h-full bg-white md:rounded-2xl shadow-xl flex flex-col overflow-hidden relative border border-slate-200/80">
+      <Top />
+    </div>
   );
 }
 
