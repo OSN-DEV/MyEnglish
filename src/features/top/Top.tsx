@@ -1,8 +1,8 @@
-import { BookOpenCheck, FileText, File, Plus, Trash2 } from "lucide-react";
+import { BookOpenCheck, FileText, File, Plus, Trash2, Sliders, Volume2, Play, RotateCcw } from "lucide-react";
 
 export const Top = () => {
   return (
-    <div id="top-screen" className="w-full h-full flex flex-col bg-slate-50/50">
+    <div id="top-screen" className="w-full h-full flex flex-col overflow-y-auto bg-slate-50/50">
       {/* ヘッダ */}
       <header className="h-14 bg-white/80 backdrop-blur border-b border-slate-100 px-6 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2">
@@ -18,160 +18,166 @@ export const Top = () => {
         </span>
       </header>
 
-      <div className="flex-1 flex overflow-hidden p-4 gap-4 relative">
+      <div className="flex-1 flex p-4 gap-4">
         {/* LEFT COLUMN: Item List (Takes remaining width) */}
-        <section className="flex-1 bg-white rounded-2xl border border-slate-200/60 shadow-sm flex flex-col overflow-hidden relative">
-          {/* List Header */}
-          <div className="p-3.5 border-b border-slate-100 bg-slate-50/30 flex justify-between items-center">
-            <h2 className="text-sm font-bold text-slate-700 flex items-center gap-1.5">
-              <FileText className="w-4 h-4"/>
-              教材データ一覧
-            </h2>
-            <span
-              id="item-count"
-              className="text-xs text-slate-400 font-medium"
-            >
-              3件
-            </span>
+        {/* 中身を absolute で配置し、一覧の件数が行の高さに影響しないようにする */}
+        <section className="flex-1 min-w-0 relative">
+          <div className="absolute inset-0 bg-white rounded-2xl border border-slate-200/60 shadow-sm flex flex-col overflow-hidden">
+            {/* List Header */}
+            <div className="shrink-0 p-3.5 border-b border-slate-100 bg-slate-50/30 flex justify-between items-center">
+              <h2 className="text-sm font-bold text-slate-700 flex items-center gap-1.5">
+                <FileText className="w-4 h-4"/>
+                教材データ一覧
+              </h2>
+              <span
+                id="item-count"
+                className="text-xs text-slate-400 font-medium"
+              >
+                3件
+              </span>
+            </div>
+
+            {/* Items Scroll Area */}
+            <div id="item-list" className="flex-1 min-h-0 overflow-y-auto p-3 space-y-2">
+
+              <div className="p-3 rounded-xl border transition cursor-pointer flex items-center justify-between group bg-indigo-50/70 border-indigo-200 shadow-sm">
+                <div className="flex items-center gap-3 overflow-hidden">
+                  <div className="w-8 h-8 rounded-lg bg-indigo-500 text-white flex items-center justify-center shrink-0">
+                    <File className="w-4  h-4"/>
+                  </div>
+                  <div className="truncate">
+                    <h4 className="text-xs font-bold text-indigo-950 truncate">
+                      010. ALL IN ONE
+                    </h4>
+                    <p className="text-[10px] text-indigo-600 font-medium">
+                      9回実施
+                    </p>
+                  </div>
+                </div>
+                <button
+                  title="削除"
+                  className="p-1.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition opacity-0 group-hover:opacity-100"
+                >
+                  <Trash2 className="w-4 h-4"/>
+                </button>
+              </div>
+
+              <div className="p-3 rounded-xl border transition cursor-pointer flex items-center justify-between group bg-white border-slate-100 hover:border-slate-200 hover:bg-slate-50/50">
+                <div className="flex items-center gap-3 overflow-hidden">
+                  <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-400 flex items-center justify-center shrink-0">
+                    <File className="w-4  h-4"/>
+                  </div>
+                  <div className="truncate">
+                    <h4 className="text-xs font-bold text-slate-700 truncate">
+                      020. キクタン【Advancd】
+                    </h4>
+                    <p className="text-[10px] text-slate-400 font-medium">
+                      4回実施
+                    </p>
+                  </div>
+                </div>
+                <button
+                  title="削除"
+                  className="p-1.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition opacity-0 group-hover:opacity-100"
+                >
+                  <Trash2 className="w-4 h-4"/>
+                </button>
+              </div>
+
+              <div className="p-3 rounded-xl border transition cursor-pointer flex items-center justify-between group bg-white border-slate-100 hover:border-slate-200 hover:bg-slate-50/50">
+                <div className="flex items-center gap-3 overflow-hidden">
+                  <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-400 flex items-center justify-center shrink-0">
+                    <File className="w-4  h-4"/>
+                  </div>
+                  <div className="truncate">
+                    <h4 className="text-xs font-bold text-slate-700 truncate">
+                      030. イラストでわからる！ ネイティブの句動詞
+                    </h4>
+                    <p className="text-[10px] text-slate-400 font-medium">
+                      3回実施
+                    </p>
+                  </div>
+                </div>
+                <button
+                  title="削除"
+                  className="p-1.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition opacity-0 group-hover:opacity-100"
+                >
+                  <Trash2 className="w-4 h-4"/>
+                </button>
+              </div>
+
+              <div className="p-3 rounded-xl border transition cursor-pointer flex items-center justify-between group bg-white border-slate-100 hover:border-slate-200 hover:bg-slate-50/50">
+                <div className="flex items-center gap-3 overflow-hidden">
+                  <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-400 flex items-center justify-center shrink-0">
+                    <File className="w-4  h-4"/>
+                  </div>
+                  <div className="truncate">
+                    <h4 className="text-xs font-bold text-slate-700 truncate">
+                      040. 初めての英語シャドーイング
+                    </h4>
+                    <p className="text-[10px] text-slate-400 font-medium">
+                      0回実施
+                    </p>
+                  </div>
+                </div>
+                <button
+                  title="削除"
+                  className="p-1.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition opacity-0 group-hover:opacity-100"
+                >
+                  <Trash2 className="w-4 h-4"/>
+                </button>
+              </div>
+
+              <div className="p-3 rounded-xl border transition cursor-pointer flex items-center justify-between group bg-white border-slate-100 hover:border-slate-200 hover:bg-slate-50/50">
+                <div className="flex items-center gap-3 overflow-hidden">
+                  <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-400 flex items-center justify-center shrink-0">
+                    <File className="w-4  h-4"/>
+                  </div>
+                  <div className="truncate">
+                    <h4 className="text-xs font-bold text-slate-700 truncate">
+                      050. ３分間パワー音読トレーニング
+                    </h4>
+                    <p className="text-[10px] text-slate-400 font-medium">
+                      0回実施
+                    </p>
+                  </div>
+                </div>
+                <button
+                  title="削除"
+                  className="p-1.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition opacity-0 group-hover:opacity-100"
+                >
+                  <Trash2 className="w-4 h-4"/>
+                </button>
+              </div>
+            </div>
+
+            {/* Import Button (一覧と重ならないよう下部の帯に配置) */}
+            <div className="shrink-0 p-3 border-t border-slate-100">
+              <button
+                id="btn-import"
+                title="ファイルを追加"
+                className="w-full py-2 px-4 bg-gradient-to-r from-indigo-500 to-violet-500 hover:from-indigo-600 hover:to-violet-600 text-white text-xs font-bold rounded-xl shadow-md shadow-indigo-100 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+              >
+                <Plus className="w-4 h-4" />
+                ファイルを追加
+              </button>
+              <input
+                type="file"
+                id="file-input"
+                accept=".json,.csv,.txt"
+                className="hidden"
+              />
+            </div>
           </div>
-
-          {/* Items Scroll Area */}
-          <div id="item-list" className="flex-1 overflow-y-auto p-3 space-y-2">
-
-            <div className="p-3 rounded-xl border transition cursor-pointer flex items-center justify-between group bg-indigo-50/70 border-indigo-200 shadow-sm">
-              <div className="flex items-center gap-3 overflow-hidden">
-                <div className="w-8 h-8 rounded-lg bg-indigo-500 text-white flex items-center justify-center shrink-0">
-                  <File className="w-4  h-4"/>
-                </div>
-                <div className="truncate">
-                  <h4 className="text-xs font-bold text-indigo-950 truncate">
-                    010. ALL IN ONE
-                  </h4>
-                  <p className="text-[10px] text-indigo-600 font-medium">
-                    9回実施
-                  </p>
-                </div>
-              </div>
-              <button
-                title="削除"
-                className="p-1.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition opacity-0 group-hover:opacity-100"
-              >
-                <Trash2 className="w-4 h-4"/>
-              </button>
-            </div>
-
-            <div className="p-3 rounded-xl border transition cursor-pointer flex items-center justify-between group bg-white border-slate-100 hover:border-slate-200 hover:bg-slate-50/50">
-              <div className="flex items-center gap-3 overflow-hidden">
-                <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-400 flex items-center justify-center shrink-0">
-                  <File className="w-4  h-4"/>
-                </div>
-                <div className="truncate">
-                  <h4 className="text-xs font-bold text-slate-700 truncate">
-                    020. キクタン【Advancd】
-                  </h4>
-                  <p className="text-[10px] text-slate-400 font-medium">
-                    4回実施
-                  </p>
-                </div>
-              </div>
-              <button
-                title="削除"
-                className="p-1.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition opacity-0 group-hover:opacity-100"
-              >
-                <Trash2 className="w-4 h-4"/>
-              </button>
-            </div>
-
-            <div className="p-3 rounded-xl border transition cursor-pointer flex items-center justify-between group bg-white border-slate-100 hover:border-slate-200 hover:bg-slate-50/50">
-              <div className="flex items-center gap-3 overflow-hidden">
-                <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-400 flex items-center justify-center shrink-0">
-                  <File className="w-4  h-4"/>
-                </div>
-                <div className="truncate">
-                  <h4 className="text-xs font-bold text-slate-700 truncate">
-                    030. イラストでわからる！ ネイティブの句動詞
-                  </h4>
-                  <p className="text-[10px] text-slate-400 font-medium">
-                    3回実施
-                  </p>
-                </div>
-              </div>
-              <button
-                title="削除"
-                className="p-1.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition opacity-0 group-hover:opacity-100"
-              >
-                <Trash2 className="w-4 h-4"/>
-              </button>
-            </div>
-
-            <div className="p-3 rounded-xl border transition cursor-pointer flex items-center justify-between group bg-white border-slate-100 hover:border-slate-200 hover:bg-slate-50/50">
-              <div className="flex items-center gap-3 overflow-hidden">
-                <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-400 flex items-center justify-center shrink-0">
-                  <File className="w-4  h-4"/>
-                </div>
-                <div className="truncate">
-                  <h4 className="text-xs font-bold text-slate-700 truncate">
-                    040. 初めての英語シャドーイング
-                  </h4>
-                  <p className="text-[10px] text-slate-400 font-medium">
-                    0回実施
-                  </p>
-                </div>
-              </div>
-              <button
-                title="削除"
-                className="p-1.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition opacity-0 group-hover:opacity-100"
-              >
-                <Trash2 className="w-4 h-4"/>
-              </button>
-            </div>
-
-            <div className="p-3 rounded-xl border transition cursor-pointer flex items-center justify-between group bg-white border-slate-100 hover:border-slate-200 hover:bg-slate-50/50">
-              <div className="flex items-center gap-3 overflow-hidden">
-                <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-400 flex items-center justify-center shrink-0">
-                  <File className="w-4  h-4"/>
-                </div>
-                <div className="truncate">
-                  <h4 className="text-xs font-bold text-slate-700 truncate">
-                    050. ３分間パワー音読トレーニング
-                  </h4>
-                  <p className="text-[10px] text-slate-400 font-medium">
-                    0回実施
-                  </p>
-                </div>
-              </div>
-              <button
-                title="削除"
-                className="p-1.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition opacity-0 group-hover:opacity-100"
-              >
-                <Trash2 className="w-4 h-4"/>
-              </button>
-            </div>
-          </div>
-
-          {/* Floating Action Button (FAB) for Import */}
-          <button
-            id="btn-import"
-            title="ファイルを追加"
-            className="absolute right-4 bottom-4 w-12 h-12 bg-gradient-to-r from-indigo-500 to-violet-500 hover:from-indigo-600 hover:to-violet-600 text-white rounded-full shadow-lg hover:shadow-indigo-200/80 transition-all transform active:scale-95 flex items-center justify-center group"
-          >
-            <Plus />
-          </button>
-          <input
-            type="file"
-            id="file-input"
-            accept=".json,.csv,.txt"
-            className="hidden"
-          />
         </section>
 
         { /* RIGHT COLUMN: Settings Panel (Fixed Width) */}
-        <section className="w-[320px] flex flex-col gap-3 overflow-y-auto pr-0.5">
+        <section className="w-[320px] shrink-0 flex flex-col gap-3">
 
             { /*  Card 1: 開始条件 */}
             <div className="bg-white p-4 rounded-2xl border border-slate-200/60 shadow-sm space-y-3">
               <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-100 pb-2">
-                <i data-lucide="sliders" className="w-3.5 h-3.5 text-indigo-500"></i>
+                <Sliders className="w-3.5 h-3.5 text-indigo-500"/>
                 問題の開始条件
               </h3>
 
@@ -206,7 +212,7 @@ export const Top = () => {
             { /*  Card 2: 再生オプション */}
             <div className="bg-white p-4 rounded-2xl border border-slate-200/60 shadow-sm space-y-3">
               <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-100 pb-2">
-                <i data-lucide="volume-2" className="w-3.5 h-3.5 text-indigo-500"></i>
+                <Volume2  className="w-3.5 h-3.5 text-indigo-500" />
                 再生オプション
               </h3>
 
@@ -253,11 +259,11 @@ export const Top = () => {
             { /*  Action Buttons (Bottom) */}
             <div className="mt-auto space-y-2 pt-1">
               <button id="btn-start" className="w-full py-2.5 px-4 bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700 text-white text-xs font-bold rounded-xl shadow-md shadow-indigo-100 transition-all active:scale-[0.98] flex items-center justify-center gap-2">
-                <i data-lucide="play" className="w-4 h-4 fill-white"></i>
+                <Play className="w-4 h-4 fill-white"/>
                 開始
               </button>
               <button id="btn-resume" className="w-full py-2 px-4 bg-indigo-50 hover:bg-indigo-100/80 text-indigo-600 text-xs font-bold rounded-xl border border-indigo-100 transition-all active:scale-[0.98] flex items-center justify-center gap-2">
-                <i data-lucide="rotate-ccw" className="w-3.5 h-3.5"></i>
+                <RotateCcw  className="w-3.5 h-3.5"/>
                 前回の続きから再開
               </button>
             </div>
