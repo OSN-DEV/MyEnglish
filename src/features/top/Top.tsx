@@ -1,13 +1,71 @@
-import { BookOpenCheck, FileText, File, Plus, Trash2, Sliders, Volume2, Play, RotateCcw } from "lucide-react";
+import {
+  BookOpenCheck,
+  FileText,
+  File,
+  Plus,
+  Trash2,
+  Sliders,
+  Volume2,
+  Play,
+  RotateCcw,
+} from "lucide-react";
+import { useState } from "react";
+import {
+  getEmptyItemSetting,
+  getItemSettings,
+} from "./repository/ItemRepository";
+import { ItemSetting } from "./component/ItemSetting";
 
 export const Top = () => {
+  const [loading, setLoading] = useState<Boolean>(false);
+  // const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [currentItem, setCurrentItem] = useState<ItemSetting | null>(null);
+  const [itemSettings, setItemSettings] = useState<ItemSetting[]>(
+    // バックエンドの実装が完了するまでの仮実装
+    getItemSettings(),
+  );
+
+  // 便宜上リストの先頭のIDを既定値として設定。最終的には削除する
+  if (currentItem === null) {
+    setCurrentItem(itemSettings[0]);
+  }
+
+  const handleItemSettingClick = (item: ItemSetting) => {
+    console.log("handleItemSettingClick");
+    setCurrentItem(item);
+  };
+
+  const handleDeleteItemSettingClick = (item: ItemSetting) => {
+    console.log("handleDeleteItemSettingClick");
+  };
+
+  const handleFieldChange = <K extends keyof ItemSetting>(field: K, value: ItemSetting[K]) => {
+    console.log("handleFieldChange:" + field + ":" + value);
+
+    if (!currentItem) return;
+
+    setItemSettings((prevItems) =>
+      prevItems.map((item) => {
+        if (item.id === currentItem.id) {
+          const newItem = { ...item, [field]: value };
+          setCurrentItem(newItem);
+          return newItem;
+        }
+        return item;
+      }),
+    );
+  };
+
   return (
-    <div id="top-screen" className="w-full h-full flex flex-col overflow-y-auto bg-slate-50/50">
+    <div
+      id="top-screen"
+      className="w-full h-full flex flex-col overflow-y-auto bg-slate-50/50"
+    >
       {/* ヘッダ */}
       <header className="h-14 bg-white/80 backdrop-blur border-b border-slate-100 px-6 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-500 to-violet-400 flex items-center justify-center text-white shadow-sm shadow-indigo-200">
-            <BookOpenCheck className="w-4  h-4"/>
+            <BookOpenCheck className="w-4  h-4" />
           </div>
           <h1 className="font-bold text-slate-800 text-lg tracking-tight">
             My English
@@ -26,21 +84,34 @@ export const Top = () => {
             {/* List Header */}
             <div className="shrink-0 p-3.5 border-b border-slate-100 bg-slate-50/30 flex justify-between items-center">
               <h2 className="text-sm font-bold text-slate-700 flex items-center gap-1.5">
-                <FileText className="w-4 h-4"/>
+                <FileText className="w-4 h-4" />
                 教材データ一覧
               </h2>
               <span
                 id="item-count"
                 className="text-xs text-slate-400 font-medium"
               >
-                3件
+                {itemSettings.length}件
               </span>
             </div>
 
             {/* Items Scroll Area */}
-            <div id="item-list" className="flex-1 min-h-0 overflow-y-auto p-3 space-y-2">
-
-              <div className="p-3 rounded-xl border transition cursor-pointer flex items-center justify-between group bg-indigo-50/70 border-indigo-200 shadow-sm">
+            <div
+              id="item-list"
+              className="flex-1 min-h-0 overflow-y-auto p-3 space-y-2"
+            >
+              {itemSettings.map((item) => {
+                return (
+                  <ItemSetting
+                    key={item.id}
+                    isSelected={currentItem?.id === item.id}
+                    itemSetting={item}
+                    onItemSettingClick={handleItemSettingClick}
+                    onDeleteItemSettingClick={handleDeleteItemSettingClick}
+                  />
+                );
+              })}
+              {/* <div className="p-3 rounded-xl border transition cursor-pointer flex items-center justify-between group bg-indigo-50/70 border-indigo-200 shadow-sm">
                 <div className="flex items-center gap-3 overflow-hidden">
                   <div className="w-8 h-8 rounded-lg bg-indigo-500 text-white flex items-center justify-center shrink-0">
                     <File className="w-4  h-4"/>
@@ -148,7 +219,7 @@ export const Top = () => {
                 >
                   <Trash2 className="w-4 h-4"/>
                 </button>
-              </div>
+              </div> */}
             </div>
 
             {/* Import Button (一覧と重ならないよう下部の帯に配置) */}
@@ -171,103 +242,182 @@ export const Top = () => {
           </div>
         </section>
 
-        { /* RIGHT COLUMN: Settings Panel (Fixed Width) */}
+        {/* RIGHT COLUMN: Settings Panel (Fixed Width) */}
         <section className="w-[320px] shrink-0 flex flex-col gap-3">
+          {/*  Card 1: 開始条件 */}
+          <div className="bg-white p-4 rounded-2xl border border-slate-200/60 shadow-sm space-y-3">
+            <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-100 pb-2">
+              <Sliders className="w-3.5 h-3.5 text-indigo-500" />
+              問題の開始条件
+            </h3>
 
-            { /*  Card 1: 開始条件 */}
-            <div className="bg-white p-4 rounded-2xl border border-slate-200/60 shadow-sm space-y-3">
-              <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-100 pb-2">
-                <Sliders className="w-3.5 h-3.5 text-indigo-500"/>
-                問題の開始条件
-              </h3>
-
-              { /*   出題数 */}
-              <div className="flex items-center justify-between gap-2">
-                <label className="text-xs font-semibold text-slate-600">出題数</label>
-                <select id="setting-count" className="text-xs bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 font-medium text-slate-700 focus:outline-none focus:border-indigo-500 transition">
+            {/*   出題数 */}
+            <div className="flex items-center justify-between gap-2">
+              <label className="text-xs font-semibold text-slate-600">
+                出題数
+              </label>
+              <input
+                onChange={(e) =>
+                  handleFieldChange("questionCount", Number(e.target.value))
+                }
+                value={currentItem?.questionCount ?? 0}
+                type="number"
+                id="setting-loop"
+                min="1"
+                className="w-12 text-center text-xs py-1.5 font-medium bg-transparent focus:outline-none"
+              />
+              {/* <select 
+                  onChange={(e) => handleFieldChange('questionCount', e.target.value)}
+                id="setting-count" className="text-xs bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 font-medium text-slate-700 focus:outline-none focus:border-indigo-500 transition">
                   <option value="5">5問</option>
                   <option value="10" selected>10問</option>
                   <option value="20">20問</option>
                   <option value="50">50問</option>
                   <option value="all">全問題</option>
-                </select>
-              </div>
-
-              { /* 出題順 */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-600 block">出題順</label>
-                <div className="grid grid-cols-2 gap-2">
-                  <label className="flex items-center gap-2 p-2 rounded-xl border border-slate-200/80 bg-slate-50/50 cursor-pointer hover:bg-slate-100/50 transition">
-                    <input type="radio" name="order" value="head" checked className="text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5" />
-                    <span className="text-xs font-medium text-slate-700">先頭から</span>
-                  </label>
-                  <label className="flex items-center gap-2 p-2 rounded-xl border border-slate-200/80 bg-slate-50/50 cursor-pointer hover:bg-slate-100/50 transition">
-                    <input type="radio" name="order" value="least" className="text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5" />
-                    <span className="text-xs font-medium text-slate-700">実施数少順</span>
-                  </label>
-                </div>
-              </div>
+                </select> */}
             </div>
 
-            { /*  Card 2: 再生オプション */}
-            <div className="bg-white p-4 rounded-2xl border border-slate-200/60 shadow-sm space-y-3">
-              <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-100 pb-2">
-                <Volume2  className="w-3.5 h-3.5 text-indigo-500" />
-                再生オプション
-              </h3>
-
-              { /* 自動再生 */}
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-slate-600">自動再生</span>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input type="checkbox" id="setting-autoplay" checked className="sr-only peer" />
-                  <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-500"></div>
+            {/* 出題順 */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-600 block">
+                出題順
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <label className="flex items-center gap-2 p-2 rounded-xl border border-slate-200/80 bg-slate-50/50 cursor-pointer hover:bg-slate-100/50 transition">
+                  <input
+                    checked={currentItem?.order + "" === "0"}
+                    onChange={() => handleFieldChange("order", 0)}
+                    type="radio"
+                    name="order"
+                    value="0"
+                    className="text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5"
+                  />
+                  <span className="text-xs font-medium text-slate-700">
+                    先頭から
+                  </span>
+                </label>
+                <label className="flex items-center gap-2 p-2 rounded-xl border border-slate-200/80 bg-slate-50/50 cursor-pointer hover:bg-slate-100/50 transition">
+                  <input
+                    type="radio"
+                    checked={currentItem?.order + "" === "1"}
+                    onChange={() => handleFieldChange("order", 1)}
+                    name="order"
+                    value="1"
+                    className="text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5"
+                  />
+                  <span className="text-xs font-medium text-slate-700">
+                    出題回数が少ない
+                  </span>
                 </label>
               </div>
+            </div>
+          </div>
 
-              { /*  再生回数 */}
-              <div className="flex items-center justify-between gap-2">
-                <label className="text-xs font-semibold text-slate-600">再生回数</label>
-                <div className="flex items-center border border-slate-200 rounded-lg overflow-hidden bg-slate-50">
-                  <input type="number" id="setting-loop" value="1" min="1" max="5" className="w-12 text-center text-xs py-1.5 font-medium bg-transparent focus:outline-none" />
-                  <span className="text-[10px] text-slate-400 pr-2">回</span>
-                </div>
-              </div>
+          {/*  Card 2: 再生オプション */}
+          <div className="bg-white p-4 rounded-2xl border border-slate-200/60 shadow-sm space-y-3">
+            <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-100 pb-2">
+              <Volume2 className="w-3.5 h-3.5 text-indigo-500" />
+              再生オプション
+            </h3>
 
-              { /*  再生後の挙動 */}
-              <label className="flex items-start gap-2 cursor-pointer pt-1">
-                <input type="checkbox" id="setting-autonext" checked className="mt-0.5 rounded text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5" />
-                <span className="text-[11px] leading-tight font-medium text-slate-600">再生後に次の問題へ自動移動する</span>
+            {/* 自動再生 */}
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-slate-600">
+                自動再生
+                {currentItem?.autoPlay}
+              </span>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  id="setting-autoplay"
+                  checked={(currentItem?.autoPlay ?? false) === true}
+                  onChange={(e) => handleFieldChange("autoPlay", e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-500"></div>
               </label>
+            </div>
 
-              { /*  再生速度 */}
-              <div className="flex items-center justify-between gap-2 pt-1">
-                <label className="text-xs font-semibold text-slate-600">再生速度</label>
-                <select id="setting-speed" className="text-xs bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 font-medium text-slate-700 focus:outline-none focus:border-indigo-500 transition">
-                  <option value="0.8">0.8x</option>
-                  <option value="0.9">0.9x</option>
-                  <option value="1.0" selected>1.0x (標準)</option>
-                  <option value="1.1">1.1x</option>
-                  <option value="1.2">1.2x</option>
-                  <option value="1.3">1.3x</option>
-                  <option value="1.4">1.4x</option>
-                  <option value="1.5">1.5x</option>
-                </select>
+            {/*  再生回数 */}
+            <div className="flex items-center justify-between gap-2">
+              <label className="text-xs font-semibold text-slate-600">
+                再生回数
+              </label>
+              <div className="flex items-center border border-slate-200 rounded-lg overflow-hidden bg-slate-50">
+                <input
+                  type="number"
+                  id="setting-loop"
+                  onChange={(e) =>
+                    handleFieldChange("autoPlayCount", e.target.value)
+                  }
+                  value={currentItem?.autoPlayCount ?? 0}
+                  min="1"
+                  className="w-12 text-center text-xs py-1.5 font-medium bg-transparent focus:outline-none"
+                />
+                <span className="text-[10px] text-slate-400 pr-2">回</span>
               </div>
             </div>
 
-            { /*  Action Buttons (Bottom) */}
-            <div className="mt-auto space-y-2 pt-1">
-              <button id="btn-start" className="w-full py-2.5 px-4 bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700 text-white text-xs font-bold rounded-xl shadow-md shadow-indigo-100 transition-all active:scale-[0.98] flex items-center justify-center gap-2">
-                <Play className="w-4 h-4 fill-white"/>
-                開始
-              </button>
-              <button id="btn-resume" className="w-full py-2 px-4 bg-indigo-50 hover:bg-indigo-100/80 text-indigo-600 text-xs font-bold rounded-xl border border-indigo-100 transition-all active:scale-[0.98] flex items-center justify-center gap-2">
-                <RotateCcw  className="w-3.5 h-3.5"/>
-                前回の続きから再開
-              </button>
+            {/*  再生後の挙動 */}
+            <label className="flex items-start gap-2 cursor-pointer pt-1">
+              <input
+                type="checkbox"
+                id="setting-autonext"
+                checked={(currentItem?.autoMove ?? false) === true}
+                onChange={(e) => handleFieldChange("autoMove", e.target.value)}
+                value="true"
+                className="mt-0.5 rounded text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5"
+              />
+              <span className="text-[11px] leading-tight font-medium text-slate-600">
+                再生後に次の問題へ自動移動する
+              </span>
+            </label>
+
+            {/*  再生速度 */}
+            <div className="flex items-center justify-between gap-2 pt-1">
+              <label className="text-xs font-semibold text-slate-600">
+                再生速度
+              </label>
+              <select
+                id="setting-speed"
+                value={currentItem?.autoPlaySpeed ?? "1.0"}
+                onChange={(e) =>
+                  handleFieldChange("autoPlaySpeed", e.target.value)
+                }
+                className="text-xs bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 font-medium text-slate-700 focus:outline-none focus:border-indigo-500 transition"
+              >
+                <option value="0.8">0.8x</option>
+                <option value="0.9">0.9x</option>
+                <option value="1.0" selected>
+                  1.0x (標準)
+                </option>
+                <option value="1.1">1.1x</option>
+                <option value="1.2">1.2x</option>
+                <option value="1.3">1.3x</option>
+                <option value="1.4">1.4x</option>
+                <option value="1.5">1.5x</option>
+              </select>
             </div>
-          </section>
+          </div>
+
+          {/*  Action Buttons (Bottom) */}
+          <div className="mt-auto space-y-2 pt-1">
+            <button
+              id="btn-start"
+              className="w-full py-2.5 px-4 bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700 text-white text-xs font-bold rounded-xl shadow-md shadow-indigo-100 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+            >
+              <Play className="w-4 h-4 fill-white" />
+              開始
+            </button>
+            <button
+              id="btn-resume"
+              className="w-full py-2 px-4 bg-indigo-50 hover:bg-indigo-100/80 text-indigo-600 text-xs font-bold rounded-xl border border-indigo-100 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              前回の続きから再開
+            </button>
+          </div>
+        </section>
       </div>
     </div>
   );
