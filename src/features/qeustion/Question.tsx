@@ -1,6 +1,16 @@
 import { ArrowLeft, ChevronLeft, ChevronRight, Eye, Gauge, Play, RotateCcw, StickyNote } from "lucide-react";
+import { ItemSetting } from "../../types/ItemSetting";
+import { Question } from "../../types/QuestonData";
 
-export const Question = () => {
+
+interface QeustionProps {
+  itemSetting: ItemSetting
+  questions: Question[]
+}
+
+export const Question = (props: QeustionProps) => {
+  const {itemSetting, questions} = props;
+
   return (
     <div
       id="question-screen"

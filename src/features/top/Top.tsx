@@ -1,60 +1,71 @@
 import {
   BookOpenCheck,
   FileText,
-  File,
   Plus,
-  Trash2,
   Sliders,
   Volume2,
   Play,
   RotateCcw,
 } from "lucide-react";
-import { useState } from "react";
-import {
-  getEmptyItemSetting,
-  getItemSettings,
-} from "./repository/ItemRepository";
-import { ItemSetting } from "./component/ItemSetting";
+import { useEffect, useState } from "react";
+import { getItemSettings } from "../../repository/ItemRepository";
+import { ItemRow } from "./component/ItemRow";
+import type { ItemSetting } from "../../types/ItemSetting";
 
-export const Top = () => {
-  const [loading, setLoading] = useState<Boolean>(false);
-  // const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [currentItem, setCurrentItem] = useState<ItemSetting | null>(null);
-  const [itemSettings, setItemSettings] = useState<ItemSetting[]>(
-    // バックエンドの実装が完了するまでの仮実装
-    getItemSettings(),
-  );
+/** 再生速度の選択肢 */
+const SPEED_OPTIONS = [0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5];
 
-  // 便宜上リストの先頭のIDを既定値として設定。最終的には削除する
-  if (currentItem === null) {
-    setCurrentItem(itemSettings[0]);
-  }
+interface TopProps {
+  onStartClick: (item:ItemSetting, isResume: boolean) => void,
+}
+
+export const Top = (props: TopProps) => {
+  const [loading, setLoading] = useState<boolean>(true);
+  const [itemSettings, setItemSettings] = useState<ItemSetting[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  // 選択中のアイテムは一覧から導出する (コピーを別の state に持たない)
+  const currentItem = itemSettings.find((item) => item.id === selectedId) ?? null;
+  const {onStartClick} = props;
+
+  useEffect(() => {
+    getItemSettings().then((items) => {
+      setItemSettings(items);
+      // 便宜上リストの先頭を既定の選択とする。最終的には削除する
+      setSelectedId(items[0]?.id ?? null);
+      setLoading(false);
+    });
+  }, []);
 
   const handleItemSettingClick = (item: ItemSetting) => {
-    console.log("handleItemSettingClick");
-    setCurrentItem(item);
+    setSelectedId(item.id);
   };
 
   const handleDeleteItemSettingClick = (item: ItemSetting) => {
-    console.log("handleDeleteItemSettingClick");
+    // 一覧から外すだけ (エクセルファイルは削除しない)。永続化はバックエンド実装時に対応
+    setItemSettings((prevItems) => prevItems.filter((i) => i.id !== item.id));
+    if (item.id === selectedId) {
+      setSelectedId(null);
+    }
   };
 
   const handleFieldChange = <K extends keyof ItemSetting>(field: K, value: ItemSetting[K]) => {
-    console.log("handleFieldChange:" + field + ":" + value);
-
-    if (!currentItem) return;
-
+    if (!selectedId) return;
     setItemSettings((prevItems) =>
-      prevItems.map((item) => {
-        if (item.id === currentItem.id) {
-          const newItem = { ...item, [field]: value };
-          setCurrentItem(newItem);
-          return newItem;
-        }
-        return item;
-      }),
+      prevItems.map((item) => (item.id === selectedId ? { ...item, [field]: value } : item)),
     );
   };
+
+  const handleStartResumeClick = (id: string | null, isResume: boolean) => {
+    if (id === null) {
+      return;
+    }
+    const item = itemSettings.find((item) => item.id === id) ?? null
+    if (item === null) {
+      console.error(`${id} not found... Maybe this is bug`);
+      return;
+    }
+      onStartClick(item, isResume)
+  }
 
   return (
     <div
@@ -100,126 +111,19 @@ export const Top = () => {
               id="item-list"
               className="flex-1 min-h-0 overflow-y-auto p-3 space-y-2"
             >
-              {itemSettings.map((item) => {
-                return (
-                  <ItemSetting
+              {loading ? (
+                <p className="text-xs text-slate-400 text-center py-4">読み込み中…</p>
+              ) : (
+                itemSettings.map((item) => (
+                  <ItemRow
                     key={item.id}
-                    isSelected={currentItem?.id === item.id}
+                    isSelected={item.id === selectedId}
                     itemSetting={item}
                     onItemSettingClick={handleItemSettingClick}
                     onDeleteItemSettingClick={handleDeleteItemSettingClick}
                   />
-                );
-              })}
-              {/* <div className="p-3 rounded-xl border transition cursor-pointer flex items-center justify-between group bg-indigo-50/70 border-indigo-200 shadow-sm">
-                <div className="flex items-center gap-3 overflow-hidden">
-                  <div className="w-8 h-8 rounded-lg bg-indigo-500 text-white flex items-center justify-center shrink-0">
-                    <File className="w-4  h-4"/>
-                  </div>
-                  <div className="truncate">
-                    <h4 className="text-xs font-bold text-indigo-950 truncate">
-                      010. ALL IN ONE
-                    </h4>
-                    <p className="text-[10px] text-indigo-600 font-medium">
-                      9回実施
-                    </p>
-                  </div>
-                </div>
-                <button
-                  title="削除"
-                  className="p-1.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition opacity-0 group-hover:opacity-100"
-                >
-                  <Trash2 className="w-4 h-4"/>
-                </button>
-              </div>
-
-              <div className="p-3 rounded-xl border transition cursor-pointer flex items-center justify-between group bg-white border-slate-100 hover:border-slate-200 hover:bg-slate-50/50">
-                <div className="flex items-center gap-3 overflow-hidden">
-                  <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-400 flex items-center justify-center shrink-0">
-                    <File className="w-4  h-4"/>
-                  </div>
-                  <div className="truncate">
-                    <h4 className="text-xs font-bold text-slate-700 truncate">
-                      020. キクタン【Advancd】
-                    </h4>
-                    <p className="text-[10px] text-slate-400 font-medium">
-                      4回実施
-                    </p>
-                  </div>
-                </div>
-                <button
-                  title="削除"
-                  className="p-1.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition opacity-0 group-hover:opacity-100"
-                >
-                  <Trash2 className="w-4 h-4"/>
-                </button>
-              </div>
-
-              <div className="p-3 rounded-xl border transition cursor-pointer flex items-center justify-between group bg-white border-slate-100 hover:border-slate-200 hover:bg-slate-50/50">
-                <div className="flex items-center gap-3 overflow-hidden">
-                  <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-400 flex items-center justify-center shrink-0">
-                    <File className="w-4  h-4"/>
-                  </div>
-                  <div className="truncate">
-                    <h4 className="text-xs font-bold text-slate-700 truncate">
-                      030. イラストでわからる！ ネイティブの句動詞
-                    </h4>
-                    <p className="text-[10px] text-slate-400 font-medium">
-                      3回実施
-                    </p>
-                  </div>
-                </div>
-                <button
-                  title="削除"
-                  className="p-1.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition opacity-0 group-hover:opacity-100"
-                >
-                  <Trash2 className="w-4 h-4"/>
-                </button>
-              </div>
-
-              <div className="p-3 rounded-xl border transition cursor-pointer flex items-center justify-between group bg-white border-slate-100 hover:border-slate-200 hover:bg-slate-50/50">
-                <div className="flex items-center gap-3 overflow-hidden">
-                  <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-400 flex items-center justify-center shrink-0">
-                    <File className="w-4  h-4"/>
-                  </div>
-                  <div className="truncate">
-                    <h4 className="text-xs font-bold text-slate-700 truncate">
-                      040. 初めての英語シャドーイング
-                    </h4>
-                    <p className="text-[10px] text-slate-400 font-medium">
-                      0回実施
-                    </p>
-                  </div>
-                </div>
-                <button
-                  title="削除"
-                  className="p-1.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition opacity-0 group-hover:opacity-100"
-                >
-                  <Trash2 className="w-4 h-4"/>
-                </button>
-              </div>
-
-              <div className="p-3 rounded-xl border transition cursor-pointer flex items-center justify-between group bg-white border-slate-100 hover:border-slate-200 hover:bg-slate-50/50">
-                <div className="flex items-center gap-3 overflow-hidden">
-                  <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-400 flex items-center justify-center shrink-0">
-                    <File className="w-4  h-4"/>
-                  </div>
-                  <div className="truncate">
-                    <h4 className="text-xs font-bold text-slate-700 truncate">
-                      050. ３分間パワー音読トレーニング
-                    </h4>
-                    <p className="text-[10px] text-slate-400 font-medium">
-                      0回実施
-                    </p>
-                  </div>
-                </div>
-                <button
-                  title="削除"
-                  className="p-1.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition opacity-0 group-hover:opacity-100"
-                >
-                  <Trash2 className="w-4 h-4"/>
-                </button>
-              </div> */}
+                ))
+              )}
             </div>
 
             {/* Import Button (一覧と重ならないよう下部の帯に配置) */}
@@ -262,19 +166,10 @@ export const Top = () => {
                 }
                 value={currentItem?.questionCount ?? 0}
                 type="number"
-                id="setting-loop"
+                id="setting-count"
                 min="1"
                 className="w-12 text-center text-xs py-1.5 font-medium bg-transparent focus:outline-none"
               />
-              {/* <select 
-                  onChange={(e) => handleFieldChange('questionCount', e.target.value)}
-                id="setting-count" className="text-xs bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 font-medium text-slate-700 focus:outline-none focus:border-indigo-500 transition">
-                  <option value="5">5問</option>
-                  <option value="10" selected>10問</option>
-                  <option value="20">20問</option>
-                  <option value="50">50問</option>
-                  <option value="all">全問題</option>
-                </select> */}
             </div>
 
             {/* 出題順 */}
@@ -285,11 +180,11 @@ export const Top = () => {
               <div className="grid grid-cols-2 gap-2">
                 <label className="flex items-center gap-2 p-2 rounded-xl border border-slate-200/80 bg-slate-50/50 cursor-pointer hover:bg-slate-100/50 transition">
                   <input
-                    checked={currentItem?.order + "" === "0"}
-                    onChange={() => handleFieldChange("order", 0)}
+                    checked={currentItem?.order === "head"}
+                    onChange={() => handleFieldChange("order", "head")}
                     type="radio"
                     name="order"
-                    value="0"
+                    value="head"
                     className="text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5"
                   />
                   <span className="text-xs font-medium text-slate-700">
@@ -299,10 +194,10 @@ export const Top = () => {
                 <label className="flex items-center gap-2 p-2 rounded-xl border border-slate-200/80 bg-slate-50/50 cursor-pointer hover:bg-slate-100/50 transition">
                   <input
                     type="radio"
-                    checked={currentItem?.order + "" === "1"}
-                    onChange={() => handleFieldChange("order", 1)}
+                    checked={currentItem?.order === "fewer"}
+                    onChange={() => handleFieldChange("order", "fewer")}
                     name="order"
-                    value="1"
+                    value="fewer"
                     className="text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5"
                   />
                   <span className="text-xs font-medium text-slate-700">
@@ -324,13 +219,12 @@ export const Top = () => {
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-slate-600">
                 自動再生
-                {currentItem?.autoPlay}
               </span>
               <label className="relative inline-flex items-center cursor-pointer">
                 <input
                   type="checkbox"
                   id="setting-autoplay"
-                  checked={(currentItem?.autoPlay ?? false) === true}
+                  checked={currentItem?.autoPlay ?? false}
                   onChange={(e) => handleFieldChange("autoPlay", e.target.checked)}
                   className="sr-only peer"
                 />
@@ -348,7 +242,7 @@ export const Top = () => {
                   type="number"
                   id="setting-loop"
                   onChange={(e) =>
-                    handleFieldChange("autoPlayCount", e.target.value)
+                    handleFieldChange("autoPlayCount", Number(e.target.value))
                   }
                   value={currentItem?.autoPlayCount ?? 0}
                   min="1"
@@ -363,9 +257,8 @@ export const Top = () => {
               <input
                 type="checkbox"
                 id="setting-autonext"
-                checked={(currentItem?.autoMove ?? false) === true}
-                onChange={(e) => handleFieldChange("autoMove", e.target.value)}
-                value="true"
+                checked={currentItem?.autoMove ?? false}
+                onChange={(e) => handleFieldChange("autoMove", e.target.checked)}
                 className="mt-0.5 rounded text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5"
               />
               <span className="text-[11px] leading-tight font-medium text-slate-600">
@@ -380,22 +273,17 @@ export const Top = () => {
               </label>
               <select
                 id="setting-speed"
-                value={currentItem?.autoPlaySpeed ?? "1.0"}
+                value={(currentItem?.autoPlaySpeed ?? 1.0).toFixed(1)}
                 onChange={(e) =>
-                  handleFieldChange("autoPlaySpeed", e.target.value)
+                  handleFieldChange("autoPlaySpeed", Number(e.target.value))
                 }
                 className="text-xs bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 font-medium text-slate-700 focus:outline-none focus:border-indigo-500 transition"
               >
-                <option value="0.8">0.8x</option>
-                <option value="0.9">0.9x</option>
-                <option value="1.0" selected>
-                  1.0x (標準)
-                </option>
-                <option value="1.1">1.1x</option>
-                <option value="1.2">1.2x</option>
-                <option value="1.3">1.3x</option>
-                <option value="1.4">1.4x</option>
-                <option value="1.5">1.5x</option>
+                {SPEED_OPTIONS.map((speed) => (
+                  <option key={speed} value={speed.toFixed(1)}>
+                    {speed.toFixed(1)}x{speed === 1.0 ? " (標準)" : ""}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
@@ -404,6 +292,7 @@ export const Top = () => {
           <div className="mt-auto space-y-2 pt-1">
             <button
               id="btn-start"
+              onClick={() => handleStartResumeClick(selectedId, false)}
               className="w-full py-2.5 px-4 bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700 text-white text-xs font-bold rounded-xl shadow-md shadow-indigo-100 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
             >
               <Play className="w-4 h-4 fill-white" />
@@ -411,6 +300,7 @@ export const Top = () => {
             </button>
             <button
               id="btn-resume"
+              onClick={() => handleStartResumeClick(selectedId, true)}
               className="w-full py-2 px-4 bg-indigo-50 hover:bg-indigo-100/80 text-indigo-600 text-xs font-bold rounded-xl border border-indigo-100 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
             >
               <RotateCcw className="w-3.5 h-3.5" />
