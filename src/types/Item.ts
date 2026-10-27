@@ -1,8 +1,8 @@
 /** 出題順 (head: 先頭から、fewer: 出題数が少ない順) */
 export type QuestionOrder = "head" | "fewer";
 
-/** エクセルの設定シートから読み込む情報 */
-export interface ItemSetting {
+/** アイテム (エクセルの設定シートの情報 ＋ アプリ側で保持する出題・再生設定) */
+export interface Item {
   /** id */
   id: string;
   /** 表示名 */
@@ -26,10 +26,10 @@ export interface ItemSetting {
   /** 自動再生 */
   autoPlay?: boolean;
   /** 再生回数 */
-  autoPlayCount?: number;
+  repeatCount?: number;
   /** 再生後の移動 */
   autoMove?: boolean;
   /** 再生速度 */
-  autoPlaySpeed?: number;
+  playbackSpeed?: number;
 }
 

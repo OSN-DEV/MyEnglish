@@ -1,28 +1,32 @@
 import { useState } from "react";
 import "./App.css";
-import { Question } from "./features/qeustion/Question";
-import { Top } from "./features/top/Top";
-import { ItemSetting } from "./types/ItemSetting";
-import { QuestionData } from "./types/QuestonData";
-import { getQuestions } from "./repository/QuestionRespository";
+import { QuestionScreen } from "./features/question/QuestionScreen";
+import { TopScreen } from "./features/top/TopScreen";
+import type { Item } from "./types/Item";
+import type { Question } from "./types/Question";
+import { getQuestions } from "./repositories/QuestionRepository";
 function App() {
-  const [isLoading, setIsLoading] = useState<Boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [currentScreen, setCurrentScreen] = useState<"top" | "question">("top");
-  const [questions, setQeustions] = useState<QuestionData[]>([]);
-  const [item, setItem] = useState<ItemSetting | null>(null);
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [item, setItem] = useState<Item | null>(null);
 
-  const handleStarClick = (item: ItemSetting, isResume: boolean) => {
+  const handleStartClick = (item: Item, isResume: boolean) => {
     // 開始されるアイテムの詳細を取得する
-    setQeustions(getQuestions());
+    setQuestions(getQuestions());
     setCurrentScreen("question");
     setItem(item);
   };
 
+  const handleEixt = () => {
+    setCurrentScreen("top")
+  }
+
   return (
     <div className="w-full h-screen bg-white md:rounded-2xl shadow-xl flex flex-col overflow-hidden relative border border-slate-200/80">
-      {currentScreen == "top" && <Top onStartClick={handleStarClick} />}
+      {currentScreen == "top" && <TopScreen onStartClick={handleStartClick} />}
       {currentScreen == "question" && (
-        <Question itemSetting={item!} questions={questions} />
+        <QuestionScreen item={item!} questions={questions} onExit={handleEixt} onComplete={handleEixt}/>
       )}
     </div>
   );

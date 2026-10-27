@@ -1,15 +1,17 @@
 import { ArrowLeft, ChevronLeft, ChevronRight, Eye, Gauge, Play, RotateCcw, StickyNote } from "lucide-react";
-import { ItemSetting } from "../../types/ItemSetting";
-import { Question } from "../../types/QuestonData";
+import type { Item } from "../../types/Item";
+import type { Question } from "../../types/Question";
 
 
-interface QeustionProps {
-  itemSetting: ItemSetting
+interface QuestionScreenProps {
+  item: Item
   questions: Question[]
+  onExit: () => void
+  onComplete: () => void
 }
 
-export const Question = (props: QeustionProps) => {
-  const {itemSetting, questions} = props;
+export const QuestionScreen = (props: QuestionScreenProps) => {
+  const {item, questions, onExit, onComplete} = props;
 
   return (
     <div
@@ -21,6 +23,7 @@ export const Question = (props: QeustionProps) => {
         <div className="flex items-center gap-3">
           <button
             id="btn-exit"
+            onClick={onExit}
             className="flex items-center gap-1.5 text-slate-500 hover:text-slate-800 text-xs font-bold bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg transition"
           >
             <ArrowLeft  className="w-4 h-4" />

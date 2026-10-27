@@ -8,49 +8,47 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { getItemSettings } from "../../repository/ItemRepository";
-import { ItemRow } from "./component/ItemRow";
-import type { ItemSetting } from "../../types/ItemSetting";
+import { getItems } from "../../repositories/ItemRepository";
+import { ItemRow } from "./components/ItemRow";
+import type { Item } from "../../types/Item";
+import { SPEED_OPTIONS } from "../../constants";
 
-/** 再生速度の選択肢 */
-const SPEED_OPTIONS = [0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5];
-
-interface TopProps {
-  onStartClick: (item:ItemSetting, isResume: boolean) => void,
+interface TopScreenProps {
+  onStartClick: (item:Item, isResume: boolean) => void,
 }
 
-export const Top = (props: TopProps) => {
-  const [loading, setLoading] = useState<boolean>(true);
-  const [itemSettings, setItemSettings] = useState<ItemSetting[]>([]);
+export const TopScreen = (props: TopScreenProps) => {
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [items, setItems] = useState<Item[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   // 選択中のアイテムは一覧から導出する (コピーを別の state に持たない)
-  const currentItem = itemSettings.find((item) => item.id === selectedId) ?? null;
+  const currentItem = items.find((item) => item.id === selectedId) ?? null;
   const {onStartClick} = props;
 
   useEffect(() => {
-    getItemSettings().then((items) => {
-      setItemSettings(items);
+    getItems().then((loadedItems) => {
+      setItems(loadedItems);
       // 便宜上リストの先頭を既定の選択とする。最終的には削除する
-      setSelectedId(items[0]?.id ?? null);
-      setLoading(false);
+      setSelectedId(loadedItems[0]?.id ?? null);
+      setIsLoading(false);
     });
   }, []);
 
-  const handleItemSettingClick = (item: ItemSetting) => {
+  const handleSelectItem = (item: Item) => {
     setSelectedId(item.id);
   };
 
-  const handleDeleteItemSettingClick = (item: ItemSetting) => {
+  const handleDeleteItem = (item: Item) => {
     // 一覧から外すだけ (エクセルファイルは削除しない)。永続化はバックエンド実装時に対応
-    setItemSettings((prevItems) => prevItems.filter((i) => i.id !== item.id));
+    setItems((prevItems) => prevItems.filter((i) => i.id !== item.id));
     if (item.id === selectedId) {
       setSelectedId(null);
     }
   };
 
-  const handleFieldChange = <K extends keyof ItemSetting>(field: K, value: ItemSetting[K]) => {
+  const handleFieldChange = <K extends keyof Item>(field: K, value: Item[K]) => {
     if (!selectedId) return;
-    setItemSettings((prevItems) =>
+    setItems((prevItems) =>
       prevItems.map((item) => (item.id === selectedId ? { ...item, [field]: value } : item)),
     );
   };
@@ -59,7 +57,7 @@ export const Top = (props: TopProps) => {
     if (id === null) {
       return;
     }
-    const item = itemSettings.find((item) => item.id === id) ?? null
+    const item = items.find((item) => item.id === id) ?? null
     if (item === null) {
       console.error(`${id} not found... Maybe this is bug`);
       return;
@@ -102,7 +100,7 @@ export const Top = (props: TopProps) => {
                 id="item-count"
                 className="text-xs text-slate-400 font-medium"
               >
-                {itemSettings.length}件
+                {items.length}件
               </span>
             </div>
 
@@ -111,16 +109,16 @@ export const Top = (props: TopProps) => {
               id="item-list"
               className="flex-1 min-h-0 overflow-y-auto p-3 space-y-2"
             >
-              {loading ? (
+              {isLoading ? (
                 <p className="text-xs text-slate-400 text-center py-4">読み込み中…</p>
               ) : (
-                itemSettings.map((item) => (
+                items.map((item) => (
                   <ItemRow
                     key={item.id}
                     isSelected={item.id === selectedId}
-                    itemSetting={item}
-                    onItemSettingClick={handleItemSettingClick}
-                    onDeleteItemSettingClick={handleDeleteItemSettingClick}
+                    item={item}
+                    onSelect={handleSelectItem}
+                    onDelete={handleDeleteItem}
                   />
                 ))
               )}
@@ -242,9 +240,9 @@ export const Top = (props: TopProps) => {
                   type="number"
                   id="setting-loop"
                   onChange={(e) =>
-                    handleFieldChange("autoPlayCount", Number(e.target.value))
+                    handleFieldChange("repeatCount", Number(e.target.value))
                   }
-                  value={currentItem?.autoPlayCount ?? 0}
+                  value={currentItem?.repeatCount ?? 0}
                   min="1"
                   className="w-12 text-center text-xs py-1.5 font-medium bg-transparent focus:outline-none"
                 />
@@ -273,9 +271,9 @@ export const Top = (props: TopProps) => {
               </label>
               <select
                 id="setting-speed"
-                value={(currentItem?.autoPlaySpeed ?? 1.0).toFixed(1)}
+                value={(currentItem?.playbackSpeed ?? 1.0).toFixed(1)}
                 onChange={(e) =>
-                  handleFieldChange("autoPlaySpeed", Number(e.target.value))
+                  handleFieldChange("playbackSpeed", Number(e.target.value))
                 }
                 className="text-xs bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 font-medium text-slate-700 focus:outline-none focus:border-indigo-500 transition"
               >

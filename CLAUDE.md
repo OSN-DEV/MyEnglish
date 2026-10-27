@@ -14,7 +14,19 @@
 - 役割分担
   - Rust (`src-tauri/`): エクセルの読み書き、ファイル存在確認、アイテム一覧・前回設定の保存 (アプリのデータフォルダ)
   - フロント (`src/`): 画面、出題セッションの進行、音声再生
-- 機能ごとのコードは `src/features/<機能>/` に置く
+- フロントの配置
+  ```
+  src/
+  ├ App.tsx              # 画面の切り替え
+  ├ constants.ts         # 画面をまたいで使う定数 (再生速度の選択肢など)
+  ├ types/               # 画面をまたいで使う型 (Item.ts, Question.ts)
+  ├ repositories/        # データ取得 (今はダミー、後で Tauri コマンド呼び出しに置き換え)
+  └ features/<画面>/     # top, question
+     ├ <画面名>Screen.tsx # 画面コンポーネント (TopScreen, QuestionScreen)
+     ├ components/       # その画面専用の部品
+     └ logic/            # 出題ロジックなどの純粋関数 (quiz-logic スキル)
+  ```
+- フォルダ名は複数形 (`types`・`repositories`・`components`)、真偽値の変数は `is〜`
 
 ## コマンド
 - 開発起動: `pnpm tauri dev`
@@ -30,7 +42,9 @@
 | セッション | 開始 (再開) 〜終了までの一連の出題 | `Session` |
 | 出題対象 | 非表示でなく、出題回数 < `hiddenThreshold` の問題 | `eligible` |
 | 周回数 | `playCount` (トップ画面の「回数」) | `playCount` |
+| 出題回数 | 問題ごとの出題された回数 (`playCount` とは**別物**) | `askedCount` |
 | 再生回数 | 自動再生の繰り返し回数 (`playCount` とは**別物**) | `repeatCount` |
+| 再生速度 | 自動・手動の両方の再生に使う速度 | `playbackSpeed` |
 
 ## 守るべきルール
 - エクセルは出題開始時に毎回読み込む。アプリ側にキャッシュしない

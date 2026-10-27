@@ -1,21 +1,21 @@
-import type { ItemSetting } from "../types/ItemSetting";
+import type { Item } from "../types/Item";
 
 /** 出題・再生設定の既定値 */
 // export const DEFAULT_SESSION_SETTING: SessionSetting = {
 //   questionCount: 10,
 //   order: "head",
 //   autoPlay: true,
-//   autoPlayCount: 1,
+//   repeatCount: 1,
 //   autoMove: true,
-//   autoPlaySpeed: 1.0,
+//   playbackSpeed: 1.0,
 // };
 
 /**
  * アイテム設定情報一覧を返却する.
  * バックエンド (Tauri コマンド) の実装が完了するまではダミーを返す.
  */
-export const getItemSettings = async (): Promise<ItemSetting[]> => {
-  return getItemSettingsProcDummy().map((info) => ({
+export const getItems = async (): Promise<Item[]> => {
+  return getItemsDummyProc().map((info) => ({
     ...info,
     // ...DEFAULT_SESSION_SETTING,
   }));
@@ -24,7 +24,7 @@ export const getItemSettings = async (): Promise<ItemSetting[]> => {
 /**
  * ダミーのアイテム情報一覧を返却する.
  */
-const getItemSettingsProcDummy = (): ItemSetting[] => {
+const getItemsDummyProc = (): Item[] => {
   return [
     {
       id: "202616170000",
