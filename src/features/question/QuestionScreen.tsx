@@ -1,6 +1,7 @@
 import { ArrowLeft, ChevronLeft, ChevronRight, Eye, Gauge, Play, RotateCcw, StickyNote } from "lucide-react";
 import type { Item } from "../../types/Item";
 import type { Question } from "../../types/Question";
+import { useState } from "react";
 
 
 interface QuestionScreenProps {
@@ -12,6 +13,21 @@ interface QuestionScreenProps {
 
 export const QuestionScreen = (props: QuestionScreenProps) => {
   const {item, questions, onExit, onComplete} = props;
+  
+  // TODO:このあたりはリストの作り方を考えてから、改めて実装する
+  const no = item.resumeNo ??   questions[0].no;
+  const [index, setIndex] = useState<number>(
+    questions.findIndex((item) => item.no === no)
+  )
+  const question = questions[index];
+
+  const handleNextClick = () => {
+    if (questions.length <= index + 1) {
+      onComplete();
+    } else {
+      setIndex((prev) => prev + 1);
+    }
+  }
 
   return (
     <div
@@ -34,7 +50,7 @@ export const QuestionScreen = (props: QuestionScreenProps) => {
             id="q-item-name"
             className="text-xs font-bold text-slate-700 truncate max-w-[200px]"
           >
-            ALL IN ONE
+            {item.displayName}
           </span>
         </div>
 
@@ -43,14 +59,14 @@ export const QuestionScreen = (props: QuestionScreenProps) => {
           <span className="font-semibold text-slate-400">
             今回:{" "}
             <strong id="q-progress-session" className="text-indigo-600">
-              1 / 10
+              {index + 1} / {questions.length}
             </strong>
           </span>
           <span className="text-slate-300">|</span>
           <span className="font-medium text-slate-500">
             アイテム内No:{" "}
             <strong id="q-progress-total" className="text-slate-700">
-              15
+              {question.no}
             </strong>
           </span>
         </div>
@@ -65,15 +81,15 @@ export const QuestionScreen = (props: QuestionScreenProps) => {
               id="q-meta-title"
               className="text-xs font-bold text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded"
             >
-              Part1 整理して覚える最重要動詞23
+              {question.title1}
             </span>
           </div>
           <div className="flex gap-4 text-xs text-slate-500 pt-1 border-t border-slate-50 mt-1">
               <strong id="q-meta-h2" className="font-normal text-slate-700">
-                1 Break
+                {question.title2}
               </strong>
               <strong id="q-meta-h3" className="font-normal text-slate-700">
-              見出し3
+              {question.title3}
               </strong>
           </div>
         </div>
@@ -87,10 +103,9 @@ export const QuestionScreen = (props: QuestionScreenProps) => {
             </span>
             <p
               id="q-text-en"
-              className="text-lg md:text-xl font-bold text-slate-800 leading-relaxed tracking-wide"
+              className="whitespace-pre-line text-lg md:text-xl font-bold text-slate-800 leading-relaxed tracking-wide"
             >
-              He is easy to offend and impossible to please. He is rather difficult to get along with, to say the least.<br/>
-A good boss is hard to come by.
+              {question.english}
             </p>
           </div>
 
@@ -114,10 +129,9 @@ A good boss is hard to come by.
             <div id="wrapper-jp" className="transition-all duration-200">
               <p
                 id="q-text-jp"
-                className="text-sm font-medium text-slate-600 leading-relaxed bg-slate-50 p-3 rounded-xl border border-slate-100"
+                className="whitespace-pre-line text-sm font-medium text-slate-600 leading-relaxed bg-slate-50 p-3 rounded-xl border border-slate-100"
               >
-                あの人はすぐに気分を害するし、それに絶対満足してくれない。控えめな言い方をしても、かなり付き合いにくい人だよ。<br/>
-いい上司に当たるのって難しいよね。
+                {question.japanese}
               </p>
             </div>
           </div>
@@ -133,23 +147,8 @@ A good boss is hard to come by.
             id="q-notes"
             className="text-xs text-slate-600 leading-normal space-y-1"
           >
-            <p>
-              <span className="font-semibold text-slate-800">
-                offend[эfe'nd]
-              </span>
-              : 気分を害する
-            </p>
-            <p>
-              <span className="font-semibold text-slate-800">
-                ～, to say the least (of it).
-              </span>
-              : 控えめに言っても～である
-            </p>
-            <p>
-              <span className="font-semibold text-slate-800">
-                come by ～
-              </span>
-              : ～を手に入れる[もつ、見つける]
+            <p className="whitespace-pre-line">
+              {question.memo}
             </p>
           </div>
         </div>
@@ -249,6 +248,7 @@ A good boss is hard to come by.
           </button>
           <button
             id="btn-next"
+            onClick={handleNextClick}
             className="py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition flex items-center justify-center gap-1 shadow-sm active:scale-[0.98]"
           >
             次へ
