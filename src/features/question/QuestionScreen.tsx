@@ -11,6 +11,10 @@ interface QuestionScreenProps {
   onComplete: () => void
 }
 
+/**
+ * 問題画面.
+ * 問題を 1 問ずつ表示し、音声の再生と問題の移動を行う.
+ */
 export const QuestionScreen = (props: QuestionScreenProps) => {
   const {item, questions, onExit, onComplete} = props;
   
@@ -21,6 +25,10 @@ export const QuestionScreen = (props: QuestionScreenProps) => {
   )
   const question = questions[index];
 
+  /**
+   * 次へボタンを押したときの処理.
+   * 最後の問題なら完了を親へ通知し、それ以外は次の問題へ進む.
+   */
   const handleNextClick = () => {
     if (questions.length <= index + 1) {
       onComplete();

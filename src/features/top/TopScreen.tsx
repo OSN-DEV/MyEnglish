@@ -17,6 +17,10 @@ interface TopScreenProps {
   onStartClick: (item:Item, isResume: boolean) => void,
 }
 
+/**
+ * トップ画面.
+ * アイテム一覧の表示・選択と、選択中アイテムの出題・再生設定の編集を行う.
+ */
 export const TopScreen = (props: TopScreenProps) => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [items, setItems] = useState<Item[]>([]);
@@ -34,10 +38,19 @@ export const TopScreen = (props: TopScreenProps) => {
     });
   }, []);
 
+  /**
+   * 一覧の行を選択したときの処理.
+   * @param item 選択されたアイテム
+   */
   const handleSelectItem = (item: Item) => {
     setSelectedId(item.id);
   };
 
+  /**
+   * 一覧の削除ボタンを押したときの処理.
+   * 削除したアイテムが選択中だった場合は選択を解除する.
+   * @param item 削除するアイテム
+   */
   const handleDeleteItem = (item: Item) => {
     // 一覧から外すだけ (エクセルファイルは削除しない)。永続化はバックエンド実装時に対応
     setItems((prevItems) => prevItems.filter((i) => i.id !== item.id));
@@ -46,6 +59,12 @@ export const TopScreen = (props: TopScreenProps) => {
     }
   };
 
+  /**
+   * 設定項目を変更したときの処理.
+   * 選択中のアイテムの指定した項目を更新する.
+   * @param field 更新する項目名
+   * @param value 更新後の値
+   */
   const handleFieldChange = <K extends keyof Item>(field: K, value: Item[K]) => {
     if (!selectedId) return;
     setItems((prevItems) =>
@@ -53,6 +72,12 @@ export const TopScreen = (props: TopScreenProps) => {
     );
   };
 
+  /**
+   * 開始・再開ボタンを押したときの処理.
+   * 選択中のアイテムを親へ渡して出題を開始する. 未選択の場合は何もしない.
+   * @param id 選択中のアイテムの id
+   * @param isResume true: 前回の続きから再開、false: 先頭から開始
+   */
   const handleStartResumeClick = (id: string | null, isResume: boolean) => {
     if (id === null) {
       return;
@@ -63,6 +88,14 @@ export const TopScreen = (props: TopScreenProps) => {
       return;
     }
       onStartClick(item, isResume)
+  }
+
+  /**
+   * ファイル追加ボタンを押したときの処理.
+   * エクセルファイルを選択してアイテムに追加する (未実装).
+   */
+  const handleAddFile =  () => {
+    
   }
 
   return (
@@ -129,6 +162,7 @@ export const TopScreen = (props: TopScreenProps) => {
               <button
                 id="btn-import"
                 title="ファイルを追加"
+                onClick={handleAddFile}
                 className="w-full py-2 px-4 bg-gradient-to-r from-indigo-500 to-violet-500 hover:from-indigo-600 hover:to-violet-600 text-white text-xs font-bold rounded-xl shadow-md shadow-indigo-100 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
               >
                 <Plus className="w-4 h-4" />

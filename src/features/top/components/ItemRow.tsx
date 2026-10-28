@@ -8,6 +8,10 @@ interface ItemRowProps {
   onDelete: (item: Item) => void;
 }
 
+/**
+ * アイテム一覧の 1 行.
+ * 行のクリックで選択、削除ボタンで削除を親へ通知する.
+ */
 export const ItemRow = (props: ItemRowProps) => {
   const { isSelected, item, onSelect, onDelete } = props;
 

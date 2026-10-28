@@ -1,9 +1,16 @@
 import type { Question } from "../types/Question";
 
+/**
+ * 問題一覧を返却する.
+ * バックエンド (Tauri コマンド) の実装が完了するまではダミーを返す.
+ */
 export const getQuestions = (): Question[] => {
   return getQuestionsDummyProc();
 };
 
+/**
+ * ダミーの問題一覧を返却する.
+ */
 const getQuestionsDummyProc = (): Question[] => {
   return [
     {
