@@ -6,12 +6,16 @@ import {
   Volume2,
   Play,
   RotateCcw,
+  X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { getItems } from "../../repositories/ItemRepository";
 import { ItemRow } from "./components/ItemRow";
 import type { Item } from "../../types/Item";
+import type { SettingData } from "../../types/SettingData";
 import { SPEED_OPTIONS } from "../../constants";
+import { open } from '@tauri-apps/plugin-dialog'
+import { invoke } from '@tauri-apps/api/core';
 
 interface TopScreenProps {
   onStartClick: (item:Item, isResume: boolean) => void,
@@ -25,6 +29,8 @@ export const TopScreen = (props: TopScreenProps) => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [items, setItems] = useState<Item[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  // ファイル追加に失敗したときのエラーメッセージ (null のときは非表示)
+  const [addFileError, setAddFileError] = useState<string | null>(null);
   // 選択中のアイテムは一覧から導出する (コピーを別の state に持たない)
   const currentItem = items.find((item) => item.id === selectedId) ?? null;
   const {onStartClick} = props;
@@ -94,8 +100,40 @@ export const TopScreen = (props: TopScreenProps) => {
    * ファイル追加ボタンを押したときの処理.
    * エクセルファイルを選択してアイテムに追加する (未実装).
    */
-  const handleAddFile =  () => {
-    
+  const handleAddFile = async () => {
+    const selected = await open({
+        multiple: false,
+        filters: [
+        {
+          name: 'Excel',
+          extensions: ['xlsx'],
+        },
+        {
+          name: 'All',
+          extensions: ['*'],
+        },
+      ]
+    })
+    if (selected) {
+      setAddFileError(null);
+      try {
+        // Rust側のコマンドを呼び出してパスを保存
+        const settingData = await invoke<SettingData>('add_excel', { filePath: selected });
+        console.log("complete add excel");
+        console.log("id:", settingData.id);
+        console.log("displayName:", settingData.displayName);
+        console.log("playCount:", settingData.playCount);
+        console.log("resumeNo:", settingData.resumeNo);
+        console.log("resumeOrder:", settingData.resumeOrder);
+        console.log("hiddenThreshold:", settingData.hiddenThreshold);
+        console.log("prevHiddenThreshold:", settingData.prevHiddenThreshold);
+        console.log("audioDir:", settingData.audioDir);
+      } catch (error) {
+        // Rust 側で Err(String) を返すと、そのメッセージが error に入る
+        console.error("fail to add excel:", error);
+        setAddFileError(String(error));
+      }
+    }
   }
 
   return (
@@ -159,6 +197,18 @@ export const TopScreen = (props: TopScreenProps) => {
 
             {/* Import Button (一覧と重ならないよう下部の帯に配置) */}
             <div className="shrink-0 p-3 border-t border-slate-100">
+              {addFileError && (
+                <div className="mb-2 p-2 rounded-lg border border-rose-200 bg-rose-50 text-[11px] text-rose-700 flex items-start gap-2">
+                  <p className="flex-1 break-all">{addFileError}</p>
+                  <button
+                    title="閉じる"
+                    onClick={() => setAddFileError(null)}
+                    className="text-rose-400 hover:text-rose-600"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
               <button
                 id="btn-import"
                 title="ファイルを追加"

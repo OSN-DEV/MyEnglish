@@ -23,12 +23,14 @@ tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tauri-plugin-dialog = "2.8.4"
-
+tauri-plugin-store = "2"
+umya-spreadsheet = "3.1.1"
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration
 [profile.release]
 codegen-units = 1
 lto = true
 opt-level = 3
-panic = "abort"
+# エラー時のパニックを catch_unwind で捕まえるため、abort にはしない
+panic = "unwind"
 strip = true
