@@ -1,5 +1,5 @@
+import { invoke } from "@tauri-apps/api/core";
 import type { Item } from "../types/Item";
-
 
 /**
  * アイテム設定情報一覧を返却する.
@@ -9,26 +9,17 @@ export const getItems = async (): Promise<Item[]> => {
   return getItemsProc();
 };
 
-const getItemsProc = (): Item[] => {
-      //   try {
-      //   // Rust側のコマンドを呼び出してパスを保存
-      //   const settingData = await invoke<SettingData>('add_excel', { filePath: selected });
-      //   console.log("complete add excel");
-      //   console.log("id:", settingData.id);
-      //   console.log("displayName:", settingData.displayName);
-      //   console.log("playCount:", settingData.playCount);
-      //   console.log("resumeNo:", settingData.resumeNo);
-      //   console.log("resumeOrder:", settingData.resumeOrder);
-      //   console.log("hiddenThreshold:", settingData.hiddenThreshold);
-      //   console.log("prevHiddenThreshold:", settingData.prevHiddenThreshold);
-      //   console.log("audioDir:", settingData.audioDir);
-      // } catch (error) {
-      //   // Rust 側で Err(String) を返すと、そのメッセージが error に入る
-      //   console.error("fail to add excel:", error);
-      //   setAddFileError(String(error));
-      // }
-      return []
-}
+const getItemsProc = async (): Promise<Item[]> => {
+  let items: Item[] = [];
+  try {
+    // Rust側のコマンドを呼び出してパスを保存
+    items = await invoke<Item[]>("get_items", {});
+  } catch (error) {
+    console.error("fail to add excel:", error);
+    return [];
+  }
+  return items;
+};
 
 /**
  * ダミーのアイテム情報一覧を返却する.
@@ -40,7 +31,7 @@ const getItemsDummyProc = (): Item[] => {
       displayName: "ALL IN ONE",
       playCount: 10,
       resumeNo: null,
-      resumeOrder: null,
+      resumeOrder: 0,
       hiddenThreshold: 9,
       prevHiddenThreshold: 8,
       audioDir: "/User/take",
@@ -50,7 +41,7 @@ const getItemsDummyProc = (): Item[] => {
       displayName: "キクタン【Advanced】",
       playCount: 4,
       resumeNo: null,
-      resumeOrder: null,
+      resumeOrder: 0,
       hiddenThreshold: 5,
       prevHiddenThreshold: 4,
       audioDir: "/User/take",
@@ -60,7 +51,7 @@ const getItemsDummyProc = (): Item[] => {
       displayName: "イラストでわかるネイティブ句動詞",
       playCount: 3,
       resumeNo: null,
-      resumeOrder: null,
+      resumeOrder: 0,
       hiddenThreshold: 4,
       prevHiddenThreshold: 3,
       audioDir: "/User/take",
@@ -70,7 +61,7 @@ const getItemsDummyProc = (): Item[] => {
       displayName: "初めての英語シャドーイング",
       playCount: 0,
       resumeNo: null,
-      resumeOrder: null,
+      resumeOrder: 0,
       hiddenThreshold: 3,
       prevHiddenThreshold: 0,
       audioDir: "/User/take",
@@ -80,7 +71,7 @@ const getItemsDummyProc = (): Item[] => {
       displayName: "３分間パワー音読トレーニング",
       playCount: 0,
       resumeNo: null,
-      resumeOrder: null,
+      resumeOrder: 0,
       hiddenThreshold: 3,
       prevHiddenThreshold: 0,
       audioDir: "/User/take",

@@ -13,11 +13,11 @@ import { getItems } from "../../repositories/ItemRepository";
 import { ItemRow } from "./components/ItemRow";
 import type { Item } from "../../types/Item";
 import { SPEED_OPTIONS } from "../../constants";
-import { open } from '@tauri-apps/plugin-dialog'
-import { invoke } from '@tauri-apps/api/core';
+import { open } from "@tauri-apps/plugin-dialog";
+import { invoke } from "@tauri-apps/api/core";
 
 interface TopScreenProps {
-  onStartClick: (item:Item, isResume: boolean) => void,
+  onStartClick: (item: Item, isResume: boolean) => void;
 }
 
 /**
@@ -32,15 +32,17 @@ export const TopScreen = (props: TopScreenProps) => {
   const [addFileError, setAddFileError] = useState<string | null>(null);
   // 選択中のアイテムは一覧から導出する (コピーを別の state に持たない)
   const currentItem = items.find((item) => item.id === selectedId) ?? null;
-  const {onStartClick} = props;
+  const { onStartClick } = props;
 
   useEffect(() => {
-    getItems().then((loadedItems) => {
-      setItems(loadedItems);
-      // 便宜上リストの先頭を既定の選択とする。最終的には削除する
-      setSelectedId(loadedItems[0]?.id ?? null);
+    const fetchItems = async () => {
+      const items = await getItems();
+      setItems(items);
+      setSelectedId(items[0]?.id ?? null);
       setIsLoading(false);
-    });
+    };
+
+    fetchItems();
   }, []);
 
   /**
@@ -70,10 +72,15 @@ export const TopScreen = (props: TopScreenProps) => {
    * @param field 更新する項目名
    * @param value 更新後の値
    */
-  const handleFieldChange = <K extends keyof Item>(field: K, value: Item[K]) => {
+  const handleFieldChange = <K extends keyof Item>(
+    field: K,
+    value: Item[K],
+  ) => {
     if (!selectedId) return;
     setItems((prevItems) =>
-      prevItems.map((item) => (item.id === selectedId ? { ...item, [field]: value } : item)),
+      prevItems.map((item) =>
+        item.id === selectedId ? { ...item, [field]: value } : item,
+      ),
     );
   };
 
@@ -87,13 +94,13 @@ export const TopScreen = (props: TopScreenProps) => {
     if (id === null) {
       return;
     }
-    const item = items.find((item) => item.id === id) ?? null
+    const item = items.find((item) => item.id === id) ?? null;
     if (item === null) {
       console.error(`${id} not found... Maybe this is bug`);
       return;
     }
-      onStartClick(item, isResume)
-  }
+    onStartClick(item, isResume);
+  };
 
   /**
    * ファイル追加ボタンを押したときの処理.
@@ -101,45 +108,44 @@ export const TopScreen = (props: TopScreenProps) => {
    */
   const handleAddFile = async () => {
     const selected = await open({
-        multiple: false,
-        filters: [
+      multiple: false,
+      filters: [
         {
-          name: 'Excel',
-          extensions: ['xlsx'],
+          name: "Excel",
+          extensions: ["xlsx"],
         },
         {
-          name: 'All',
-          extensions: ['*'],
+          name: "All",
+          extensions: ["*"],
         },
-      ]
-    })
+      ],
+    });
     if (selected) {
       setAddFileError(null);
       try {
         // Rust側のコマンドを呼び出してパスを保存
-        const newItem = await invoke<Item>('add_excel', { filePath: selected });
-        console.log("complete add excel");
-        console.log("id:", newItem.id);
-        console.log("displayName:", newItem.displayName);
-        console.log("playCount:", newItem.playCount);
-        console.log("resumeNo:", newItem.resumeNo);
-        console.log("resumeOrder:", newItem.resumeOrder);
-        console.log("hiddenThreshold:", newItem.hiddenThreshold);
-        console.log("prevHiddenThreshold:", newItem.prevHiddenThreshold);
-        console.log("audioDir:", newItem.audioDir);
-        console.log("resumeNo:", newItem.resumeNo);
-        console.log("questionCount:", newItem.questionCount);
-        console.log("questionOrder:", newItem.questionOrder);
-        console.log("autoPlay:", newItem.autoPlay);
-        console.log("repeatCount:", newItem.repeatCount);
-        console.log("autoMove:", newItem.autoMove);
-        console.log("playbackSpeed:", newItem.playbackSpeed);
+        const newItem = await invoke<Item>("add_item", { filePath: selected });
+        // console.log("complete add excel");
+        // console.log("id:", newItem.id);
+        // console.log("displayName:", newItem.displayName);
+        // console.log("playCount:", newItem.playCount);
+        // console.log("resumeNo:", newItem.resumeNo);
+        // console.log("resumeOrder:", newItem.resumeOrder);
+        // console.log("hiddenThreshold:", newItem.hiddenThreshold);
+        // console.log("prevHiddenThreshold:", newItem.prevHiddenThreshold);
+        // console.log("audioDir:", newItem.audioDir);
+        // console.log("resumeNo:", newItem.resumeNo);
+        // console.log("questionCount:", newItem.questionCount);
+        // console.log("questionOrder:", newItem.questionOrder);
+        // console.log("autoPlay:", newItem.autoPlay);
+        // console.log("repeatCount:", newItem.repeatCount);
+        // console.log("autoMove:", newItem.autoMove);
+        // console.log("playbackSpeed:", newItem.playbackSpeed);
 
-        let exist = items.find((item) => item.id === newItem.id)
+        let exist = items.find((item) => item.id === newItem.id);
         if (exist === undefined) {
-          setItems([...items, newItem])
+          setItems([...items, newItem]);
         } else {
-
         }
       } catch (error) {
         // Rust 側で Err(String) を返すと、そのメッセージが error に入る
@@ -147,7 +153,7 @@ export const TopScreen = (props: TopScreenProps) => {
         setAddFileError(String(error));
       }
     }
-  }
+  };
 
   return (
     <div
@@ -194,7 +200,9 @@ export const TopScreen = (props: TopScreenProps) => {
               className="flex-1 min-h-0 overflow-y-auto p-3 space-y-2"
             >
               {isLoading ? (
-                <p className="text-xs text-slate-400 text-center py-4">読み込み中…</p>
+                <p className="text-xs text-slate-400 text-center py-4">
+                  読み込み中…
+                </p>
               ) : (
                 items.map((item) => (
                   <ItemRow
@@ -242,7 +250,10 @@ export const TopScreen = (props: TopScreenProps) => {
         </section>
 
         {/* RIGHT COLUMN: Settings Panel (Fixed Width) */}
-        <fieldset className="w-[320px] shrink-0 flex flex-col gap-3" disabled={items.length === 0}>
+        <fieldset
+          className="w-[320px] shrink-0 flex flex-col gap-3"
+          disabled={items.length === 0}
+        >
           {/*  Card 1: 開始条件 */}
           <div className="bg-white p-4 rounded-2xl border border-slate-200/60 shadow-sm space-y-3">
             <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-100 pb-2">
@@ -320,7 +331,9 @@ export const TopScreen = (props: TopScreenProps) => {
                   type="checkbox"
                   id="setting-autoplay"
                   checked={currentItem?.autoPlay ?? false}
-                  onChange={(e) => handleFieldChange("autoPlay", e.target.checked)}
+                  onChange={(e) =>
+                    handleFieldChange("autoPlay", e.target.checked)
+                  }
                   className="sr-only peer"
                 />
                 <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-500"></div>
@@ -353,7 +366,9 @@ export const TopScreen = (props: TopScreenProps) => {
                 type="checkbox"
                 id="setting-autonext"
                 checked={currentItem?.autoMove ?? false}
-                onChange={(e) => handleFieldChange("autoMove", e.target.checked)}
+                onChange={(e) =>
+                  handleFieldChange("autoMove", e.target.checked)
+                }
                 className="mt-0.5 rounded text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5"
               />
               <span className="text-[11px] leading-tight font-medium text-slate-600">
@@ -397,13 +412,11 @@ export const TopScreen = (props: TopScreenProps) => {
             <button
               id="btn-resume"
               onClick={() => handleStartResumeClick(selectedId, true)}
-               
               className="w-full py-2 px-4 bg-indigo-50 enabled:hover:bg-indigo-100/80 text-indigo-600 text-xs font-bold rounded-xl border border-indigo-100 transition-all enabled:active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <RotateCcw className="w-3.5 h-3.5" />
               前回の続きから再開
             </button>
-            
           </div>
         </fieldset>
       </div>

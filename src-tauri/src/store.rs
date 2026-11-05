@@ -20,7 +20,7 @@ impl AppStore {
      * パスを追加する(すでに登録済みの場合は追加しない)
      *
      */
-    pub fn add_excel_path(&self, app: tauri::AppHandle, file_path: &str) -> Result<(), String> {
+    pub fn add_item_path(&self, app: tauri::AppHandle, file_path: &str) -> Result<(), String> {
         // app.store("setting.json")
         // → 成功時はストアのインスタンスを返却する(Result<Store, Error>)
         // .map_err(|e| e.to_string())
@@ -42,7 +42,9 @@ impl AppStore {
         };
 
         // 2. まだリストに含まれていない場合のみ追加する（重複を防ぐ場合）
-        if !paths.contains(&file_path.to_string()) {
+        if paths.contains(&file_path.to_string()) {
+            return Err(format!("This file is registered: {}", file_path));
+        } else {
             paths.push(file_path.to_string());
         }
 
@@ -53,5 +55,38 @@ impl AppStore {
         store.save().map_err(|e| e.to_string())?;
 
         Ok(())
+    }
+
+    /**
+     * パスを削除する
+     */
+    pub fn remove_item_path(&self, app: tauri::AppHandle, file_path: &str) -> Result<(), String>{
+        let store = app.store("settings.json").map_err(|e| e.to_string())?;
+        let mut paths: Vec<String> = if let Some(value) = store.get("excel_path") {
+            serde_json::from_value(value.clone()).unwrap_or_default()
+        } else {
+            Vec::new()
+        };
+
+        paths.retain(|path| path != file_path);
+
+        store.set("excel_path".to_string(), json!(paths));
+        // （必要に応じてファイルに書き込み保存）
+        store.save().map_err(|e| e.to_string())?;
+        Ok(())
+    }
+
+    /**
+     * 登録済みのパス一覧を取得する
+     */
+    pub fn get_item_paths(&self, app: tauri::AppHandle) -> Result<Vec<String>, String> {
+        let store = app.store("settings.json").map_err(|e| e.to_string())?;
+        let paths: Vec<String> = if let Some(value) = store.get("excel_path") {
+            serde_json::from_value(value.clone()).unwrap_or_default()
+        } else {
+            Vec::new()
+        };
+
+        Ok(paths)
     }
 }

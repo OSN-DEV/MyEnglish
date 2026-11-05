@@ -5,7 +5,7 @@ use serde::Serialize;
 
 // フロントへはキャメルケース (display_name → displayName) で渡す
 #[serde(rename_all = "camelCase")]
-pub struct SettingData {
+pub struct Item {
     pub id: String,                 // id
     pub display_name: String,       // 表示名称
     pub play_count: u8,             // 再生回数

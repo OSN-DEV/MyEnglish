@@ -1,12 +1,12 @@
-use crate::excel::{ExcelHandler, Sheet};
+use crate::excel::ExcelHandler;
 use crate::store::AppStore;
 
 pub mod debug_menu;
 pub mod excel;
 pub mod model;
 pub mod store;
-use crate::model::SettingData;
-use umya_spreadsheet::Worksheet;
+use crate::model::Item;
+use std::path::Path;
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
@@ -22,34 +22,63 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .menu(debug_menu::build)
         .on_menu_event(debug_menu::handle_event)
-        .invoke_handler(tauri::generate_handler![greet, add_excel])
+        .invoke_handler(tauri::generate_handler![greet, add_item, get_items])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
 
 #[tauri::command]
-fn add_excel(app: tauri::AppHandle, file_path: String) -> Result<SettingData, String> {
-    // ライブラリ内部でパニックが起きてもアプリを落とさず、エラーとしてフロントへ返す
-    let setting_data =
-        std::panic::catch_unwind(|| read_setting_data(&file_path)).unwrap_or_else(|_| {
+// 追加されているエクセル一覧を取得する
+fn get_items(app: tauri::AppHandle) -> Result<Vec<Item>, String> {
+    let app_store = AppStore {};
+    let paths = app_store
+        .get_item_paths(app.clone())
+        .map_err(|e| format!("Failed to getItems {}", e))?;
+
+    let mut items = Vec::new();
+
+    for path in &paths {
+        let file = Path::new(path);
+        if !file.exists() {
+            app_store.remove_item_path(app.clone(), path);
+            continue;
+        }
+
+        let item = std::panic::catch_unwind(|| read_item(&path)).unwrap_or_else(|_| {
             Err(format!(
                 "エクセルの読み込み中に予期しないエラーが発生しました: {}",
-                file_path
+                path
             ))
         })?;
+        items.push(item);
+    }
+
+    Ok(items)
+}
+
+// エクセルを追加する
+#[tauri::command]
+fn add_item(app: tauri::AppHandle, file_path: String) -> Result<Item, String> {
+    // ライブラリ内部でパニックが起きてもアプリを落とさず、エラーとしてフロントへ返す
+    let item = std::panic::catch_unwind(|| read_item(&file_path)).unwrap_or_else(|_| {
+        Err(format!(
+            "エクセルの読み込み中に予期しないエラーが発生しました: {}",
+            file_path
+        ))
+    })?;
 
     // 読み込めたファイルだけを登録する
     // add_excel_pathのfile_pathのパラメータがStringだと、そこで所有権が移動してしまうので
     // &strで受け取るようにしている。
     let app_store = AppStore {};
     // ?; Resultを返す関数内で使える演算子。例外が発生した場合にエラーを返却して移行の処理を実行しない
-    app_store.add_excel_path(app, &file_path)?;
+    app_store.add_item_path(app, &file_path)?;
 
-    Ok(setting_data)
+    Ok(item)
 }
 
 /// エクセルの設定シートを読み込む.
-fn read_setting_data(file_path: &str) -> Result<SettingData, String> {
+fn read_item(file_path: &str) -> Result<Item, String> {
     // unwrap はエラー時にパニックしてアプリが落ちるため、? でエラーをフロントへ返す
     let reopened = ExcelHandler::open(file_path)?;
     let sheet = reopened.sheet("出力情報")?;
@@ -87,7 +116,7 @@ fn read_setting_data(file_path: &str) -> Result<SettingData, String> {
         };
     }
 
-    Ok(SettingData {
+    Ok(Item {
         id: get(1),
         display_name: get(2),
         play_count: parse_cell!(3, "play_count")?,
