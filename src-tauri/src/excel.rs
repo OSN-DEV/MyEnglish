@@ -82,6 +82,21 @@ impl Sheet<'_> {
         // umya-spreadsheet の座標は (列, 行) の順
         self.sheet.value((col, row))
     }
+
+    pub fn parse_cell<T: std::str::FromStr>(
+        &self,
+        row: u32, 
+        col: u32, 
+        field_name: &str
+    ) -> Result<T, String> {
+        self.get_cell_rc(row, col)
+            .parse::<T>()
+            .map_err(|_| format!("Failed to convert {}", field_name))
+    }
+
+
+
+
 }
 
 /// 読み書き用のシート (`ExcelHandler::sheet_mut` で取得).
@@ -104,6 +119,18 @@ impl SheetMut<'_> {
         self.sheet.value((col, row))
     }
 
+    pub fn parse_cell<T: std::str::FromStr>(
+        &self,
+        row: u32, 
+        col: u32, 
+        field_name: &str
+    ) -> Result<T, String> {
+        self.get_cell_rc(row, col)
+            .parse::<T>()
+            .map_err(|_| format!("Failed to convert {}", field_name))
+    }
+
+    
     /// 指定したセルに値を設定する.
     /// @param cell_address セル番地 ("A1" など)
     /// @param value 設定する値

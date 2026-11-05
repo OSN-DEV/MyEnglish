@@ -6,7 +6,7 @@ import type { Item } from "../types/Item";
  * バックエンド (Tauri コマンド) の実装が完了するまではダミーを返す.
  */
 export const getItems = async (): Promise<Item[]> => {
-  return getItemsDummyProc();
+  return getItemsProc();
 };
 
 const getItemsProc = (): Item[] => {

@@ -12,7 +12,6 @@ import { useEffect, useState } from "react";
 import { getItems } from "../../repositories/ItemRepository";
 import { ItemRow } from "./components/ItemRow";
 import type { Item } from "../../types/Item";
-import type { SettingData } from "../../types/SettingData";
 import { SPEED_OPTIONS } from "../../constants";
 import { open } from '@tauri-apps/plugin-dialog'
 import { invoke } from '@tauri-apps/api/core';
@@ -118,16 +117,30 @@ export const TopScreen = (props: TopScreenProps) => {
       setAddFileError(null);
       try {
         // Rust側のコマンドを呼び出してパスを保存
-        const settingData = await invoke<SettingData>('add_excel', { filePath: selected });
+        const newItem = await invoke<Item>('add_excel', { filePath: selected });
         console.log("complete add excel");
-        console.log("id:", settingData.id);
-        console.log("displayName:", settingData.displayName);
-        console.log("playCount:", settingData.playCount);
-        console.log("resumeNo:", settingData.resumeNo);
-        console.log("resumeOrder:", settingData.resumeOrder);
-        console.log("hiddenThreshold:", settingData.hiddenThreshold);
-        console.log("prevHiddenThreshold:", settingData.prevHiddenThreshold);
-        console.log("audioDir:", settingData.audioDir);
+        console.log("id:", newItem.id);
+        console.log("displayName:", newItem.displayName);
+        console.log("playCount:", newItem.playCount);
+        console.log("resumeNo:", newItem.resumeNo);
+        console.log("resumeOrder:", newItem.resumeOrder);
+        console.log("hiddenThreshold:", newItem.hiddenThreshold);
+        console.log("prevHiddenThreshold:", newItem.prevHiddenThreshold);
+        console.log("audioDir:", newItem.audioDir);
+        console.log("resumeNo:", newItem.resumeNo);
+        console.log("questionCount:", newItem.questionCount);
+        console.log("questionOrder:", newItem.questionOrder);
+        console.log("autoPlay:", newItem.autoPlay);
+        console.log("repeatCount:", newItem.repeatCount);
+        console.log("autoMove:", newItem.autoMove);
+        console.log("playbackSpeed:", newItem.playbackSpeed);
+
+        let exist = items.find((item) => item.id === newItem.id)
+        if (exist === undefined) {
+          setItems([...items, newItem])
+        } else {
+
+        }
       } catch (error) {
         // Rust 側で Err(String) を返すと、そのメッセージが error に入る
         console.error("fail to add excel:", error);
@@ -229,7 +242,7 @@ export const TopScreen = (props: TopScreenProps) => {
         </section>
 
         {/* RIGHT COLUMN: Settings Panel (Fixed Width) */}
-        <section className="w-[320px] shrink-0 flex flex-col gap-3">
+        <fieldset className="w-[320px] shrink-0 flex flex-col gap-3" disabled={items.length === 0}>
           {/*  Card 1: 開始条件 */}
           <div className="bg-white p-4 rounded-2xl border border-slate-200/60 shadow-sm space-y-3">
             <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-100 pb-2">
@@ -375,7 +388,8 @@ export const TopScreen = (props: TopScreenProps) => {
             <button
               id="btn-start"
               onClick={() => handleStartResumeClick(selectedId, false)}
-              className="w-full py-2.5 px-4 bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700 text-white text-xs font-bold rounded-xl shadow-md shadow-indigo-100 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+              type="button"
+              className="w-full py-2.5 px-4 bg-gradient-to-r from-indigo-500 to-violet-600 enabled:hover:from-indigo-600 enabled:hover:to-violet-700 text-white text-xs font-bold rounded-xl shadow-md shadow-indigo-100 transition-all enabled:active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Play className="w-4 h-4 fill-white" />
               開始
@@ -383,13 +397,15 @@ export const TopScreen = (props: TopScreenProps) => {
             <button
               id="btn-resume"
               onClick={() => handleStartResumeClick(selectedId, true)}
-              className="w-full py-2 px-4 bg-indigo-50 hover:bg-indigo-100/80 text-indigo-600 text-xs font-bold rounded-xl border border-indigo-100 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+               
+              className="w-full py-2 px-4 bg-indigo-50 enabled:hover:bg-indigo-100/80 text-indigo-600 text-xs font-bold rounded-xl border border-indigo-100 transition-all enabled:active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <RotateCcw className="w-3.5 h-3.5" />
               前回の続きから再開
             </button>
+            
           </div>
-        </section>
+        </fieldset>
       </div>
     </div>
   );
