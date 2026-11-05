@@ -4,6 +4,12 @@ use serde_json::json;
 // アプリケーションの状態やデータを保持する構造体
 pub struct AppStore {}
 
+impl Default for AppStore {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+ 
 impl AppStore {
     // コンストラクタ
     pub fn new() -> Self {

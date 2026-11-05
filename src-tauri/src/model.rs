@@ -4,11 +4,11 @@ use serde::Serialize;
 #[derive(Serialize, Clone, Debug)]
 pub struct SettingData {
     pub id: String,
-    pub displayName: String,
-    pub playCount: i8,
-    pub resumeNo: String,
-    pub resumeOrder: String,
-    pub hiddenThreshold: i8,
-    pub prevHiddenThreshold: i8,
-    pub audioDir: String
+    pub display_name: String,
+    pub play_count: i8,
+    pub resume_no: String,
+    pub resume_order: String,
+    pub hidden_threshold: i8,
+    pub prev_hidden_threshold: i8,
+    pub audio_dir: String
 }
