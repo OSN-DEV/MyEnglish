@@ -58,8 +58,6 @@ fn read_setting_data(file_path: &str) -> Result<SettingData, String> {
             .get_cell_rc(5, col)
             .parse::<i8>()
             .map_err(|_| "playCount の数値変換に失敗しました".to_string())?,
-        resume_no: sheet.get_cell_rc(8, col),
-        resume_order: sheet.get_cell_rc(9, col),
         hidden_threshold: sheet
             .get_cell_rc(6, col)
             .parse::<i8>()
@@ -68,6 +66,8 @@ fn read_setting_data(file_path: &str) -> Result<SettingData, String> {
             .get_cell_rc(7, col)
             .parse::<i8>()
             .map_err(|_| "prevHiddenThreshold の数値変換に失敗しました".to_string())?,
-        audio_dir: sheet.get_cell_rc(10, col),
+        audio_dir: sheet.get_cell_rc(8, col),
+        resume_no: sheet.get_cell_rc(9, col),
+        resume_order: sheet.get_cell_rc(10, col),
     })
 }
