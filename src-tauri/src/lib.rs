@@ -1,6 +1,7 @@
 use crate::excel::ExcelHandler;
 use crate::store::AppStore;
 
+pub mod debug_menu;
 pub mod excel;
 pub mod model;
 pub mod store;
@@ -18,6 +19,8 @@ pub fn run() {
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        .menu(debug_menu::build)
+        .on_menu_event(debug_menu::handle_event)
         .invoke_handler(tauri::generate_handler![greet, add_excel])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

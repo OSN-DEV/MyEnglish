@@ -1,25 +1,34 @@
 import type { Item } from "../types/Item";
 
-/** 出題・再生設定の既定値 */
-// export const DEFAULT_SESSION_SETTING: SessionSetting = {
-//   questionCount: 10,
-//   order: "head",
-//   autoPlay: true,
-//   repeatCount: 1,
-//   autoMove: true,
-//   playbackSpeed: 1.0,
-// };
 
 /**
  * アイテム設定情報一覧を返却する.
  * バックエンド (Tauri コマンド) の実装が完了するまではダミーを返す.
  */
 export const getItems = async (): Promise<Item[]> => {
-  return getItemsDummyProc().map((info) => ({
-    ...info,
-    // ...DEFAULT_SESSION_SETTING,
-  }));
+  return getItemsDummyProc();
 };
+
+const getItemsProc = (): Item[] => {
+      //   try {
+      //   // Rust側のコマンドを呼び出してパスを保存
+      //   const settingData = await invoke<SettingData>('add_excel', { filePath: selected });
+      //   console.log("complete add excel");
+      //   console.log("id:", settingData.id);
+      //   console.log("displayName:", settingData.displayName);
+      //   console.log("playCount:", settingData.playCount);
+      //   console.log("resumeNo:", settingData.resumeNo);
+      //   console.log("resumeOrder:", settingData.resumeOrder);
+      //   console.log("hiddenThreshold:", settingData.hiddenThreshold);
+      //   console.log("prevHiddenThreshold:", settingData.prevHiddenThreshold);
+      //   console.log("audioDir:", settingData.audioDir);
+      // } catch (error) {
+      //   // Rust 側で Err(String) を返すと、そのメッセージが error に入る
+      //   console.error("fail to add excel:", error);
+      //   setAddFileError(String(error));
+      // }
+      return []
+}
 
 /**
  * ダミーのアイテム情報一覧を返却する.
