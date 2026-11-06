@@ -2,6 +2,7 @@ import { ArrowLeft, ChevronLeft, ChevronRight, Eye, Gauge, Play, RotateCcw, Stic
 import type { Item } from "../../types/Item";
 import type { Question } from "../../types/Question";
 import { useState } from "react";
+import { SPEED_OPTIONS } from "../../constants";
 
 
 interface QuestionScreenProps {
@@ -20,8 +21,9 @@ export const QuestionScreen = (props: QuestionScreenProps) => {
   
   // TODO:このあたりはリストの作り方を考えてから、改めて実装する
   const no = item.resumeNo ??   questions[0].no;
+  // resumeNo の問題が今回の問題に無い場合は先頭から表示する
   const [index, setIndex] = useState<number>(
-    questions.findIndex((item) => item.no === no)
+    Math.max(0, questions.findIndex((q) => q.no === no))
   )
   const question = questions[index];
 
@@ -228,18 +230,14 @@ export const QuestionScreen = (props: QuestionScreenProps) => {
               <Gauge  className="w-3.5 h-3.5 text-slate-400" />
               <select
                 id="player-speed"
+                defaultValue={(item.playbackSpeed ?? 1.0).toFixed(1)}
                 className="text-[11px] font-bold bg-transparent text-slate-600 focus:outline-none cursor-pointer"
               >
-                <option value="0.8">0.8x</option>
-                <option value="0.9">0.9x</option>
-                <option value="1.0" selected>
-                  1.0x
-                </option>
-                <option value="1.1">1.1x</option>
-                <option value="1.2">1.2x</option>
-                <option value="1.3">1.3x</option>
-                <option value="1.4">1.4x</option>
-                <option value="1.5">1.5x</option>
+                {SPEED_OPTIONS.map((speed) => (
+                  <option key={speed} value={speed.toFixed(1)}>
+                    {speed.toFixed(1)}x
+                  </option>
+                ))}
               </select>
             </div>
           </div>

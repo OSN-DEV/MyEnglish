@@ -6,15 +6,17 @@ import type { Item } from "./types/Item";
 import type { Question } from "./types/Question";
 import { getQuestions } from "./repositories/QuestionRepository";
 
+/** 表示中の画面. 問題画面のときだけ出題中のアイテムと問題を持つ */
+type Screen =
+  | { name: "top" }
+  | { name: "question"; item: Item; questions: Question[] };
+
 /**
  * アプリのルート.
  * トップ画面と問題画面を切り替える.
  */
 function App() {
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [currentScreen, setCurrentScreen] = useState<"top" | "question">("top");
-  const [questions, setQuestions] = useState<Question[]>([]);
-  const [item, setItem] = useState<Item | null>(null);
+  const [screen, setScreen] = useState<Screen>({ name: "top" });
 
   /**
    * 開始・再開ボタン押下時の処理.
@@ -22,11 +24,9 @@ function App() {
    * @param item 開始するアイテム
    * @param isResume true: 前回の続きから再開、false: 先頭から開始
    */
-  const handleStartClick = (item: Item, isResume: boolean) => {
-    // 開始されるアイテムの詳細を取得する
-    setQuestions(getQuestions());
-    setCurrentScreen("question");
-    setItem(item);
+  // TODO: 出題ロジック (quiz-logic) の実装時に isResume を使う
+  const handleStartClick = (item: Item, _isResume: boolean) => {
+    setScreen({ name: "question", item, questions: getQuestions() });
   };
 
   /**
@@ -34,14 +34,14 @@ function App() {
    * トップ画面へ戻る.
    */
   const handleExit = () => {
-    setCurrentScreen("top")
-  }
+    setScreen({ name: "top" });
+  };
 
   return (
     <div className="w-full h-screen bg-white md:rounded-2xl shadow-xl flex flex-col overflow-hidden relative border border-slate-200/80">
-      {currentScreen == "top" && <TopScreen onStartClick={handleStartClick} />}
-      {currentScreen == "question" && (
-        <QuestionScreen item={item!} questions={questions} onExit={handleExit} onComplete={handleExit}/>
+      {screen.name === "top" && <TopScreen onStartClick={handleStartClick} />}
+      {screen.name === "question" && (
+        <QuestionScreen item={screen.item} questions={screen.questions} onExit={handleExit} onComplete={handleExit} />
       )}
     </div>
   );

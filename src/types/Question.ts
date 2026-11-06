@@ -1,13 +1,13 @@
-
+/** 問題 (問題シート Phrases の 1 行). 任意の列が空の場合は "" */
 export interface Question {
     /** no */
     no: number
     /** 見出し１ */
-    title1: string | null
+    title1: string
     /** 見出し２ */
-    title2: string | null
+    title2: string
     /** 見出し３ */
-    title3: string | null
+    title3: string
     /** 出題回数 */
     askedCount: number
     /** 英文 */

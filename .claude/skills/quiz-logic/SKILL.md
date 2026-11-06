@@ -16,7 +16,7 @@ description: 出題対象の抽出・出題順の並べ替え・開始/再開位
 
 ### 出題順
 - `head` (先頭から): No の昇順
-- `fewer` (出題数が少ない順):
+- `fewer` (出題回数が少ない順。エクセル上の値は `1`、`head` は `0`):
   1. 出題回数 ≦ `prevHiddenThreshold` の出題対象 (No 昇順)
   2. 出題回数 ＞ `prevHiddenThreshold` の出題対象 (No 昇順)
 

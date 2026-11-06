@@ -9,19 +9,25 @@ description: 教材エクセルの読み込み・書き戻し・インポート�
 
 ## 構成
 
-### 設定シート `出力情報` (A 列 = キー、B 列 = 値)
-| キー | 型 | 書き戻し | 備考 |
-|---|---|---|---|
-| id | string | | アイテムの識別子 |
-| displayName | string | | トップ画面の表示名称 |
-| playCount | number | ○ | 周回数 |
-| resumeNo | number | ○ | 次に出題する問題 No |
-| resumeOrder | `head` \| `fewer` | ○ | resumeNo を記録したときの出題順 |
-| hiddenThreshold | number | | 出題対象の閾値 |
-| prevHiddenThreshold | number | | 手動更新のみ。アプリは読むだけ |
-| audioDir | string | | 絶対パス or エクセルからの相対パス |
+### 設定シート `出力情報` (C 列の決まった行に値)
+| 行 | キー | 型 | 必須 | 書き戻し | 空のとき |
+|---|---|---|---|---|---|
+| 1 | id | string | ○ | | |
+| 2 | displayName | string | ○ | | |
+| 3 | playCount | number | ○ | ○ | |
+| 4 | hiddenThreshold | number | ○ | | |
+| 5 | prevHiddenThreshold | number (手動更新のみ。アプリは読むだけ) | ○ | | |
+| 6 | audioDir | string (絶対パス or エクセルからの相対パス) | ○ | | |
+| 7 | resumeNo | number | | ○ | 未記録 (`None` / `null`) |
+| 8 | resumeOrder | `0` = head / `1` = fewer | | ○ | `0` |
+| 9 | questionCount | number | | ○ | `10` |
+| 10 | questionOrder | `0` = head / `1` = fewer | | ○ | `0` |
+| 11 | autoPlay | bool (`TRUE`/`FALSE`、大文字小文字を区別しない) | | ○ | `TRUE` |
+| 12 | repeatCount | number | | ○ | `1` |
+| 13 | autoMove | bool | | ○ | `FALSE` |
+| 14 | playbackSpeed | number | | ○ | `1.0` |
 
-`出力ファイル` / `入力ファイル` は過去バージョン用。読まない・書かない。
+C 列 1〜14 行目以外のセルは読まない・書かない。読み込みは `src-tauri/src/setting_sheet.rs`。
 
 ### 問題シート `Phrases` (1 行目ヘッダ)
 | 列 | 項目 | 必須 | 書き戻し |
@@ -40,20 +46,21 @@ description: 教材エクセルの読み込み・書き戻し・インポート�
 - 読み書きは Rust 側 (`src-tauri/`) で行い、Tauri コマンドとしてフロントに公開する
 - ライブラリ: 書き戻しに `umya-spreadsheet` (書式を保ったまま編集できる)。`calamine` は読み込み専用なので書き戻しには使えない
 - 書き戻すのは上表の「書き戻し ○」のセルだけ。他のセル・シート・書式には触れない
-- セルの位置はヘッダ名・キー名で探さず、上表の列記号 / A 列のキー一致で特定する
+- セルの位置はヘッダ名・キー名で探さず、上表の列記号 / 行番号で特定する
 - 型が想定外 (数値欄に文字列など) のときは、行番号とキーを含むエラーを返す
 
 ## タイミング
 - セッションが終了して TOP 画面に戻る直前に、まとめて 1 回だけ書き戻す
   - 最後の問題での「次へ」による終了、「終了 (中断)」・Esc のどちらも対象
-  - 対象: 出題回数・非表示 (`Phrases`)、`resumeNo`・`resumeOrder`・`playCount` (`出力情報`)
+  - 対象: 出題回数・非表示 (`Phrases`)、`出力情報` の書き戻し ○ の行 (3・7〜14 行目)
+  - 出題・再生設定 (9〜14 行目) は開始・再開したときの値。開始しなかったときの変更は保存しない
   - セッション中の変更はメモリ上で保持し、出題ごとには書き込まない
   - クラッシュ時にそのセッションの変更が失われるのは許容 (対策不要)
 - 出題開始時: 毎回ファイルを読み直す (キャッシュしない)
 
 ## インポート時の検証
 - シート `出力情報` と `Phrases` が存在する
-- 必須キー (`displayName`・`hiddenThreshold`・`audioDir` など) が存在する
+- 必須キー (上表の必須 ○) が空でない、登録済みのアイテムと `id` が重複しない
 - 必須列 (No・見出し1・英文) が空の行がない、No が 1 以上の整数で重複しない
 - NG ならどのシート・行・キーが原因かを表示する
 

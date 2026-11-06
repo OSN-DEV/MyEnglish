@@ -9,12 +9,12 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { getItems } from "../../repositories/ItemRepository";
-import { ItemRow } from "./components/ItemRow";
-import type { Item } from "../../types/Item";
-import { SPEED_OPTIONS } from "../../constants";
+import { getVersion } from "@tauri-apps/api/app";
 import { open } from "@tauri-apps/plugin-dialog";
-import { invoke } from "@tauri-apps/api/core";
+import { addItem, getItems, removeItem } from "../../repositories/ItemRepository";
+import { ItemRow } from "./components/ItemRow";
+import type { Item, ItemEntry } from "../../types/Item";
+import { SPEED_OPTIONS } from "../../constants";
 
 interface TopScreenProps {
   onStartClick: (item: Item, isResume: boolean) => void;
@@ -26,43 +26,60 @@ interface TopScreenProps {
  */
 export const TopScreen = (props: TopScreenProps) => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [items, setItems] = useState<Item[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  // ファイル追加に失敗したときのエラーメッセージ (null のときは非表示)
-  const [addFileError, setAddFileError] = useState<string | null>(null);
+  const [entries, setEntries] = useState<ItemEntry[]>([]);
+  // 選択はパスで管理する (読み込めなかったアイテムには id が無いため)
+  const [selectedPath, setSelectedPath] = useState<string | null>(null);
+  // 一覧の取得・追加・削除に失敗したときのエラーメッセージ (null のときは非表示)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [appVersion, setAppVersion] = useState<string>("");
   // 選択中のアイテムは一覧から導出する (コピーを別の state に持たない)
-  const currentItem = items.find((item) => item.id === selectedId) ?? null;
+  const currentItem =
+    entries.find((entry) => entry.filePath === selectedPath)?.item ?? null;
   const { onStartClick } = props;
 
   useEffect(() => {
     const fetchItems = async () => {
-      const items = await getItems();
-      setItems(items);
-      setSelectedId(items[0]?.id ?? null);
-      setIsLoading(false);
+      try {
+        const entries = await getItems();
+        setEntries(entries);
+        setSelectedPath(entries[0]?.filePath ?? null);
+      } catch (error) {
+        setErrorMessage(`アイテム一覧の取得に失敗しました: ${error}`);
+      } finally {
+        setIsLoading(false);
+      }
     };
 
     fetchItems();
+    getVersion().then(setAppVersion);
   }, []);
 
   /**
    * 一覧の行を選択したときの処理.
-   * @param item 選択されたアイテム
+   * @param entry 選択されたアイテム
    */
-  const handleSelectItem = (item: Item) => {
-    setSelectedId(item.id);
+  const handleSelectItem = (entry: ItemEntry) => {
+    setSelectedPath(entry.filePath);
   };
 
   /**
    * 一覧の削除ボタンを押したときの処理.
+   * 一覧から外すだけで、エクセルファイルは削除しない.
    * 削除したアイテムが選択中だった場合は選択を解除する.
-   * @param item 削除するアイテム
+   * @param entry 削除するアイテム
    */
-  const handleDeleteItem = (item: Item) => {
-    // 一覧から外すだけ (エクセルファイルは削除しない)。永続化はバックエンド実装時に対応
-    setItems((prevItems) => prevItems.filter((i) => i.id !== item.id));
-    if (item.id === selectedId) {
-      setSelectedId(null);
+  const handleDeleteItem = async (entry: ItemEntry) => {
+    try {
+      await removeItem(entry.filePath);
+    } catch (error) {
+      setErrorMessage(`アイテムの削除に失敗しました: ${error}`);
+      return;
+    }
+    setEntries((prevEntries) =>
+      prevEntries.filter((e) => e.filePath !== entry.filePath),
+    );
+    if (entry.filePath === selectedPath) {
+      setSelectedPath(null);
     }
   };
 
@@ -76,10 +93,11 @@ export const TopScreen = (props: TopScreenProps) => {
     field: K,
     value: Item[K],
   ) => {
-    if (!selectedId) return;
-    setItems((prevItems) =>
-      prevItems.map((item) =>
-        item.id === selectedId ? { ...item, [field]: value } : item,
+    setEntries((prevEntries) =>
+      prevEntries.map((entry) =>
+        entry.filePath === selectedPath && entry.item !== null
+          ? { ...entry, item: { ...entry.item, [field]: value } }
+          : entry,
       ),
     );
   };
@@ -87,24 +105,18 @@ export const TopScreen = (props: TopScreenProps) => {
   /**
    * 開始・再開ボタンを押したときの処理.
    * 選択中のアイテムを親へ渡して出題を開始する. 未選択の場合は何もしない.
-   * @param id 選択中のアイテムの id
    * @param isResume true: 前回の続きから再開、false: 先頭から開始
    */
-  const handleStartResumeClick = (id: string | null, isResume: boolean) => {
-    if (id === null) {
+  const handleStartResumeClick = (isResume: boolean) => {
+    if (currentItem === null) {
       return;
     }
-    const item = items.find((item) => item.id === id) ?? null;
-    if (item === null) {
-      console.error(`${id} not found... Maybe this is bug`);
-      return;
-    }
-    onStartClick(item, isResume);
+    onStartClick(currentItem, isResume);
   };
 
   /**
    * ファイル追加ボタンを押したときの処理.
-   * エクセルファイルを選択してアイテムに追加する (未実装).
+   * エクセルファイルを選択してアイテムに追加する.
    */
   const handleAddFile = async () => {
     const selected = await open({
@@ -120,38 +132,19 @@ export const TopScreen = (props: TopScreenProps) => {
         },
       ],
     });
-    if (selected) {
-      setAddFileError(null);
-      try {
-        // Rust側のコマンドを呼び出してパスを保存
-        const newItem = await invoke<Item>("add_item", { filePath: selected });
-        // console.log("complete add excel");
-        // console.log("id:", newItem.id);
-        // console.log("displayName:", newItem.displayName);
-        // console.log("playCount:", newItem.playCount);
-        // console.log("resumeNo:", newItem.resumeNo);
-        // console.log("resumeOrder:", newItem.resumeOrder);
-        // console.log("hiddenThreshold:", newItem.hiddenThreshold);
-        // console.log("prevHiddenThreshold:", newItem.prevHiddenThreshold);
-        // console.log("audioDir:", newItem.audioDir);
-        // console.log("resumeNo:", newItem.resumeNo);
-        // console.log("questionCount:", newItem.questionCount);
-        // console.log("questionOrder:", newItem.questionOrder);
-        // console.log("autoPlay:", newItem.autoPlay);
-        // console.log("repeatCount:", newItem.repeatCount);
-        // console.log("autoMove:", newItem.autoMove);
-        // console.log("playbackSpeed:", newItem.playbackSpeed);
-
-        let exist = items.find((item) => item.id === newItem.id);
-        if (exist === undefined) {
-          setItems([...items, newItem]);
-        } else {
-        }
-      } catch (error) {
-        // Rust 側で Err(String) を返すと、そのメッセージが error に入る
-        console.error("fail to add excel:", error);
-        setAddFileError(String(error));
-      }
+    if (!selected) {
+      return;
+    }
+    setErrorMessage(null);
+    try {
+      // 登録済み・読み込めないファイルの場合は Rust 側でエラーになる
+      const newItem = await addItem(selected);
+      setEntries((prevEntries) => [
+        ...prevEntries,
+        { filePath: newItem.filePath, item: newItem, errorMessage: null },
+      ]);
+    } catch (error) {
+      setErrorMessage(String(error));
     }
   };
 
@@ -171,7 +164,7 @@ export const TopScreen = (props: TopScreenProps) => {
           </h1>
         </div>
         <span className="text-xs font-medium px-2.5 py-1 bg-indigo-50 text-indigo-600 rounded-full border border-indigo-100">
-          v1.0.0
+          v{appVersion}
         </span>
       </header>
 
@@ -190,7 +183,7 @@ export const TopScreen = (props: TopScreenProps) => {
                 id="item-count"
                 className="text-xs text-slate-400 font-medium"
               >
-                {items.length}件
+                {entries.length}件
               </span>
             </div>
 
@@ -204,11 +197,11 @@ export const TopScreen = (props: TopScreenProps) => {
                   読み込み中…
                 </p>
               ) : (
-                items.map((item) => (
+                entries.map((entry) => (
                   <ItemRow
-                    key={item.id}
-                    isSelected={item.id === selectedId}
-                    item={item}
+                    key={entry.filePath}
+                    isSelected={entry.filePath === selectedPath}
+                    entry={entry}
                     onSelect={handleSelectItem}
                     onDelete={handleDeleteItem}
                   />
@@ -218,12 +211,12 @@ export const TopScreen = (props: TopScreenProps) => {
 
             {/* Import Button (一覧と重ならないよう下部の帯に配置) */}
             <div className="shrink-0 p-3 border-t border-slate-100">
-              {addFileError && (
+              {errorMessage && (
                 <div className="mb-2 p-2 rounded-lg border border-rose-200 bg-rose-50 text-[11px] text-rose-700 flex items-start gap-2">
-                  <p className="flex-1 break-all">{addFileError}</p>
+                  <p className="flex-1 break-all">{errorMessage}</p>
                   <button
                     title="閉じる"
-                    onClick={() => setAddFileError(null)}
+                    onClick={() => setErrorMessage(null)}
                     className="text-rose-400 hover:text-rose-600"
                   >
                     <X className="w-3.5 h-3.5" />
@@ -239,12 +232,6 @@ export const TopScreen = (props: TopScreenProps) => {
                 <Plus className="w-4 h-4" />
                 ファイルを追加
               </button>
-              <input
-                type="file"
-                id="file-input"
-                accept=".json,.csv,.txt"
-                className="hidden"
-              />
             </div>
           </div>
         </section>
@@ -252,7 +239,7 @@ export const TopScreen = (props: TopScreenProps) => {
         {/* RIGHT COLUMN: Settings Panel (Fixed Width) */}
         <fieldset
           className="w-[320px] shrink-0 flex flex-col gap-3"
-          disabled={items.length === 0}
+          disabled={currentItem === null}
         >
           {/*  Card 1: 開始条件 */}
           <div className="bg-white p-4 rounded-2xl border border-slate-200/60 shadow-sm space-y-3">
@@ -270,7 +257,7 @@ export const TopScreen = (props: TopScreenProps) => {
                 onChange={(e) =>
                   handleFieldChange("questionCount", Number(e.target.value))
                 }
-                value={currentItem?.questionCount ?? 0}
+                value={currentItem?.questionCount ?? ""}
                 type="number"
                 id="setting-count"
                 min="1"
@@ -286,8 +273,8 @@ export const TopScreen = (props: TopScreenProps) => {
               <div className="grid grid-cols-2 gap-2">
                 <label className="flex items-center gap-2 p-2 rounded-xl border border-slate-200/80 bg-slate-50/50 cursor-pointer hover:bg-slate-100/50 transition">
                   <input
-                    checked={currentItem?.order === "head"}
-                    onChange={() => handleFieldChange("order", "head")}
+                    checked={currentItem?.questionOrder === "head"}
+                    onChange={() => handleFieldChange("questionOrder", "head")}
                     type="radio"
                     name="order"
                     value="head"
@@ -300,14 +287,14 @@ export const TopScreen = (props: TopScreenProps) => {
                 <label className="flex items-center gap-2 p-2 rounded-xl border border-slate-200/80 bg-slate-50/50 cursor-pointer hover:bg-slate-100/50 transition">
                   <input
                     type="radio"
-                    checked={currentItem?.order === "fewer"}
-                    onChange={() => handleFieldChange("order", "fewer")}
+                    checked={currentItem?.questionOrder === "fewer"}
+                    onChange={() => handleFieldChange("questionOrder", "fewer")}
                     name="order"
                     value="fewer"
                     className="text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5"
                   />
                   <span className="text-xs font-medium text-slate-700">
-                    出題回数が少ない
+                    出題回数が少ない順
                   </span>
                 </label>
               </div>
@@ -352,7 +339,7 @@ export const TopScreen = (props: TopScreenProps) => {
                   onChange={(e) =>
                     handleFieldChange("repeatCount", Number(e.target.value))
                   }
-                  value={currentItem?.repeatCount ?? 0}
+                  value={currentItem?.repeatCount ?? ""}
                   min="1"
                   className="w-12 text-center text-xs py-1.5 font-medium bg-transparent focus:outline-none"
                 />
@@ -402,7 +389,7 @@ export const TopScreen = (props: TopScreenProps) => {
           <div className="mt-auto space-y-2 pt-1">
             <button
               id="btn-start"
-              onClick={() => handleStartResumeClick(selectedId, false)}
+              onClick={() => handleStartResumeClick(false)}
               type="button"
               className="w-full py-2.5 px-4 bg-gradient-to-r from-indigo-500 to-violet-600 enabled:hover:from-indigo-600 enabled:hover:to-violet-700 text-white text-xs font-bold rounded-xl shadow-md shadow-indigo-100 transition-all enabled:active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
@@ -411,7 +398,7 @@ export const TopScreen = (props: TopScreenProps) => {
             </button>
             <button
               id="btn-resume"
-              onClick={() => handleStartResumeClick(selectedId, true)}
+              onClick={() => handleStartResumeClick(true)}
               className="w-full py-2 px-4 bg-indigo-50 enabled:hover:bg-indigo-100/80 text-indigo-600 text-xs font-bold rounded-xl border border-indigo-100 transition-all enabled:active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <RotateCcw className="w-3.5 h-3.5" />

@@ -1,92 +1,44 @@
-use tauri_plugin_store::StoreExt;
 use serde_json::json;
+use tauri::AppHandle;
+use tauri_plugin_store::StoreExt;
 
-// アプリケーションの状態やデータを保持する構造体
-pub struct AppStore {}
+/// アプリのデータフォルダに保存するファイル名
+const STORE_FILE: &str = "settings.json";
+/// アイテム一覧 (エクセルのパスのリスト) を保存するキー
+const ITEM_PATHS_KEY: &str = "itemPaths";
 
-impl Default for AppStore {
-    fn default() -> Self {
-        Self::new()
-    }
+/// 登録済みのパス一覧を取得する.
+pub fn get_item_paths(app: &AppHandle) -> Result<Vec<String>, String> {
+    let store = app.store(STORE_FILE).map_err(|e| e.to_string())?;
+    // if let Some(value) = store.get(..) は、is_some() で確認してから unwrap() するのと同義
+    let paths = if let Some(value) = store.get(ITEM_PATHS_KEY) {
+        serde_json::from_value(value).unwrap_or_default()
+    } else {
+        Vec::new()
+    };
+    Ok(paths)
 }
- 
-impl AppStore {
-    // コンストラクタ
-    pub fn new() -> Self {
-        Self {}
+
+/// パスを追加する. 登録済みの場合はエラーを返す.
+pub fn add_item_path(app: &AppHandle, file_path: &str) -> Result<(), String> {
+    let mut paths = get_item_paths(app)?;
+    if paths.iter().any(|path| path == file_path) {
+        return Err(format!("このファイルは登録済みです: {}", file_path));
     }
+    paths.push(file_path.to_string());
+    save_item_paths(app, &paths)
+}
 
-    /**
-     * パスを追加する(すでに登録済みの場合は追加しない)
-     *
-     */
-    pub fn add_item_path(&self, app: tauri::AppHandle, file_path: &str) -> Result<(), String> {
-        // app.store("setting.json")
-        // → 成功時はストアのインスタンスを返却する(Result<Store, Error>)
-        // .map_err(|e| e.to_string())
-        // → (e) => e.toString()と同じようなイメージ。
-        // 末尾の ?;
-        // → 処理に成功した場合はstoreにインスタンスを設定。失敗した場合は即座に呼び出し元にリターンする
-        let store = app.store("settings.json").map_err(|e| e.to_string())?;
+/// パスを削除する.
+pub fn remove_item_path(app: &AppHandle, file_path: &str) -> Result<(), String> {
+    let mut paths = get_item_paths(app)?;
+    paths.retain(|path| path != file_path);
+    save_item_paths(app, &paths)
+}
 
-        // if let Some(value) = store.get("excel_path")
-        // →
-        // if store.get("excel_path").is_some() {
-        //   let value = store.get("excel_path").unwrap();
-        // }
-        // と同義
-        let mut paths: Vec<String> = if let Some(value) = store.get("excel_path") {
-            serde_json::from_value(value.clone()).unwrap_or_default()
-        } else {
-            Vec::new()
-        };
-
-        // 2. まだリストに含まれていない場合のみ追加する（重複を防ぐ場合）
-        if paths.contains(&file_path.to_string()) {
-            return Err(format!("This file is registered: {}", file_path));
-        } else {
-            paths.push(file_path.to_string());
-        }
-
-        // 3. リストを JSON の配列としてストアに保存する
-        store.set("excel_path".to_string(), json!(paths));
-
-        // （必要に応じてファイルに書き込み保存）
-        store.save().map_err(|e| e.to_string())?;
-
-        Ok(())
-    }
-
-    /**
-     * パスを削除する
-     */
-    pub fn remove_item_path(&self, app: tauri::AppHandle, file_path: &str) -> Result<(), String>{
-        let store = app.store("settings.json").map_err(|e| e.to_string())?;
-        let mut paths: Vec<String> = if let Some(value) = store.get("excel_path") {
-            serde_json::from_value(value.clone()).unwrap_or_default()
-        } else {
-            Vec::new()
-        };
-
-        paths.retain(|path| path != file_path);
-
-        store.set("excel_path".to_string(), json!(paths));
-        // （必要に応じてファイルに書き込み保存）
-        store.save().map_err(|e| e.to_string())?;
-        Ok(())
-    }
-
-    /**
-     * 登録済みのパス一覧を取得する
-     */
-    pub fn get_item_paths(&self, app: tauri::AppHandle) -> Result<Vec<String>, String> {
-        let store = app.store("settings.json").map_err(|e| e.to_string())?;
-        let paths: Vec<String> = if let Some(value) = store.get("excel_path") {
-            serde_json::from_value(value.clone()).unwrap_or_default()
-        } else {
-            Vec::new()
-        };
-
-        Ok(paths)
-    }
+/// パス一覧をファイルに保存する.
+fn save_item_paths(app: &AppHandle, paths: &[String]) -> Result<(), String> {
+    let store = app.store(STORE_FILE).map_err(|e| e.to_string())?;
+    store.set(ITEM_PATHS_KEY, json!(paths));
+    store.save().map_err(|e| e.to_string())
 }

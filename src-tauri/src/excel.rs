@@ -34,6 +34,14 @@ impl ExcelHandler {
         }
     }
 
+    /// シートを追加する.
+    pub fn add_sheet(&mut self, sheet_name: &str) -> Result<(), String> {
+        self.book
+            .new_sheet(sheet_name)
+            .map_err(|e| format!("シート '{}' の追加に失敗しました: {:?}", sheet_name, e))?;
+        Ok(())
+    }
+
     /// 読み込み用にシートを取得する.
     /// 返したシートを使っている間は、同じブックへの書き込みや保存はできない.
     pub fn sheet(&self, sheet_name: &str) -> Result<Sheet<'_>, String> {
@@ -83,20 +91,29 @@ impl Sheet<'_> {
         self.sheet.value((col, row))
     }
 
+    /// 行・列を指定してセルの値を取得し、型を変換する.
+    /// 変換できない場合は、シート名・行番号・項目名を含むエラーを返す.
+    /// @param field_name エラーメッセージに出す項目名
     pub fn parse_cell<T: std::str::FromStr>(
         &self,
-        row: u32, 
-        col: u32, 
-        field_name: &str
+        row: u32,
+        col: u32,
+        field_name: &str,
     ) -> Result<T, String> {
-        self.get_cell_rc(row, col)
-            .parse::<T>()
-            .map_err(|_| format!("Failed to convert {}", field_name))
+        let value = self.get_cell_rc(row, col);
+        value.parse::<T>().map_err(|_| self.convert_error(row, field_name, &value))
     }
 
-
-
-
+    /// 型の変換に失敗したときのエラーメッセージを作る.
+    pub fn convert_error(&self, row: u32, field_name: &str, value: &str) -> String {
+        format!(
+            "シート '{}' の {} 行目 ({}) の値 '{}' を変換できません",
+            self.sheet.name(),
+            row,
+            field_name,
+            value
+        )
+    }
 }
 
 /// 読み書き用のシート (`ExcelHandler::sheet_mut` で取得).
@@ -105,32 +122,11 @@ pub struct SheetMut<'a> {
 }
 
 impl SheetMut<'_> {
-    /// 指定したセルの値を取得する.
-    /// @param cell_address セル番地 ("A1" など)
-    pub fn get_cell(&self, cell_address: &str) -> String {
-        self.sheet.value(cell_address)
+    /// 読み込み用のシートとして扱う (値の取得は `Sheet` のメソッドを使う).
+    pub fn as_sheet(&self) -> Sheet<'_> {
+        Sheet { sheet: self.sheet }
     }
 
-    /// 行・列を指定してセルの値を取得する.
-    /// @param row 行番号 (1 始まり)
-    /// @param col 列番号 (1 始まり、A 列 = 1)
-    pub fn get_cell_rc(&self, row: u32, col: u32) -> String {
-        // umya-spreadsheet の座標は (列, 行) の順
-        self.sheet.value((col, row))
-    }
-
-    pub fn parse_cell<T: std::str::FromStr>(
-        &self,
-        row: u32, 
-        col: u32, 
-        field_name: &str
-    ) -> Result<T, String> {
-        self.get_cell_rc(row, col)
-            .parse::<T>()
-            .map_err(|_| format!("Failed to convert {}", field_name))
-    }
-
-    
     /// 指定したセルに値を設定する.
     /// @param cell_address セル番地 ("A1" など)
     /// @param value 設定する値
@@ -147,27 +143,6 @@ impl SheetMut<'_> {
         self.sheet.cell_mut((col, row)).set_value(value);
     }
 }
-
-// 呼び出し元のサンプル
-// fn main() -> Result<(), String> {
-//     // 1. ファイルを開いてインスタンスを保持する
-//     let mut excel = ExcelHandler::open("example.xlsx")?;
-//
-//     // 2. シートを 1 回取得すれば、何回でもセルの読み書きができる
-//     {
-//         let mut sheet = excel.sheet_mut("Sheet1")?;
-//         println!("A1の元の値: {}", sheet.get_cell("A1"));
-//         sheet.set_cell("A1", "新しい値だよ");
-//         sheet.set_cell_rc(2, 2, "100"); // B2
-//     } // sheet はここで破棄され、excel を再び使えるようになる
-//
-//     // 3. 処理が終わったら保存する。失敗した場合は excel.save() を再度呼べば再試行できる
-//     excel.save()?;
-//
-//     println!("Excelファイルの更新と保存が完了しました！");
-//     Ok(())
-//     // excel はここでスコープを抜けて自動で破棄される (クローズ処理は不要)
-// }
 
 #[cfg(test)]
 mod tests {
@@ -186,6 +161,7 @@ mod tests {
             let mut sheet = excel.sheet_mut("Sheet1").unwrap();
             sheet.set_cell("A1", "hello");
             sheet.set_cell_rc(2, 3, "world"); // C2
+            assert_eq!(sheet.as_sheet().get_cell("A1"), "hello");
         }
         excel.save().unwrap();
 
@@ -204,5 +180,14 @@ mod tests {
         let mut excel = ExcelHandler::create_new(temp_path("missing_sheet"));
         assert!(excel.sheet("NotExist").is_err());
         assert!(excel.sheet_mut("NotExist").is_err());
+    }
+
+    #[test]
+    fn 変換できない値はシート名と行番号を含むエラーになる() {
+        let mut excel = ExcelHandler::create_new(temp_path("parse_error"));
+        excel.sheet_mut("Sheet1").unwrap().set_cell_rc(3, 1, "abc");
+        let sheet = excel.sheet("Sheet1").unwrap();
+        let error = sheet.parse_cell::<u32>(3, 1, "playCount").unwrap_err();
+        assert!(error.contains("Sheet1") && error.contains("3 行目") && error.contains("playCount"));
     }
 }
