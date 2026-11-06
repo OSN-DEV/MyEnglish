@@ -15,6 +15,7 @@ import { addItem, getItems, removeItem } from "../../repositories/ItemRepository
 import { ItemRow } from "./components/ItemRow";
 import type { Item, ItemEntry } from "../../types/Item";
 import { SPEED_OPTIONS } from "../../constants";
+import Loading from "../../components/Loading";
 
 interface TopScreenProps {
   onStartClick: (item: Item, isResume: boolean) => void;
@@ -407,6 +408,9 @@ export const TopScreen = (props: TopScreenProps) => {
           </div>
         </fieldset>
       </div>
+      {
+        isLoading && <Loading />
+      }
     </div>
   );
 };
