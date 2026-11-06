@@ -66,6 +66,8 @@ fn read_item_unchecked(file_path: &str) -> Result<Item, String> {
 }
 
 /// 設定シートの値を、項目の型に合わせて読み込む.
+//<'a> ライフタイムパラメータ。
+// SettingReaderが生きている間はSheetのインスタンスはメモリから削除されないことをコンパイラに約束している？
 struct SettingReader<'a> {
     sheet: &'a Sheet<'a>,
 }
