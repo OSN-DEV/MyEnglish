@@ -29,6 +29,8 @@ pub fn read_questions(item: &Item) -> Result<Vec<Question>, String> {
 }
 
 pub fn read_questions_unchecked(item: &Item) -> Result<Vec<Question>, String> {
+
+println!("file {}", item.file_path);    
     // open は AsRef<Path> (パスとして参照できる型) を受け取るので、String をコピーせず借用で渡せる
     let excel = ExcelHandler::open(&item.file_path)?;
     let sheet = excel.sheet(SHEET_NAME)?;
@@ -69,10 +71,12 @@ pub fn read_questions_unchecked(item: &Item) -> Result<Vec<Question>, String> {
         let no = reader.parse(row, NO_COL, "no")?;
         let asked_count = reader.parse_or(row, ASKED_COUNT_COL, "askedCount", 0)?;
         if item.hidden_threshold <= asked_count {
+// println!("continue1");
             continue;
         }
         let is_hidden = reader.bool_or(row, IS_HIDDEN_COL, "isHidden", false)?;
         if is_hidden {
+// println!("continue2");
             continue;
         }
         let english = reader.required_text(row, ENGLISH_COL, "english")?;

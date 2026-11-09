@@ -32,9 +32,15 @@ function App() {
   // TODO: 出題ロジック (quiz-logic) の実装時に isResume を使う
   const handleStartClick = async (item: Item, _isResume: boolean) => {
     setIsLoading(true);
+    setErrorMessage(null);
     try {
       const eligibleQuestions = await getQuestions(item);
       const questions = takeSessionQuestions(eligibleQuestions, item.questionCount);
+      if (questions.length === 0) {
+        setErrorMessage(`出題可能な問題がありません。`);
+        return;
+      }
+      console.log(`handleStartClick: ${questions.length}`)
       setScreen({ name: "question", item, questions });
     } catch (error) {
       setErrorMessage(`問題一覧の取得に失敗しました: ${error}`);

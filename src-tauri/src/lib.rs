@@ -88,5 +88,6 @@ fn load_entry(path: &str) -> ItemEntry {
 #[tauri::command]
 fn get_questions(item: Item) -> Result<Vec<Question>, String> {
     let questions = question_sheet::read_questions(&item)?;
+    println!("get_questions {}", questions.len());
     Ok(questions)
 }
