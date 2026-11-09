@@ -101,7 +101,9 @@ impl Sheet<'_> {
         field_name: &str,
     ) -> Result<T, String> {
         let value = self.get_cell_rc(row, col);
-        value.parse::<T>().map_err(|_| self.convert_error(row, field_name, &value))
+        value
+            .parse::<T>()
+            .map_err(|_| self.convert_error(row, field_name, &value))
     }
 
     /// 型の変換に失敗したときのエラーメッセージを作る.
@@ -150,7 +152,11 @@ mod tests {
 
     /// テスト用の一時ファイルのパスを返す.
     fn temp_path(name: &str) -> PathBuf {
-        std::env::temp_dir().join(format!("my_english_test_{}_{}.xlsx", name, std::process::id()))
+        std::env::temp_dir().join(format!(
+            "my_english_test_{}_{}.xlsx",
+            name,
+            std::process::id()
+        ))
     }
 
     #[test]
@@ -188,6 +194,8 @@ mod tests {
         excel.sheet_mut("Sheet1").unwrap().set_cell_rc(3, 1, "abc");
         let sheet = excel.sheet("Sheet1").unwrap();
         let error = sheet.parse_cell::<u32>(3, 1, "playCount").unwrap_err();
-        assert!(error.contains("Sheet1") && error.contains("3 行目") && error.contains("playCount"));
+        assert!(
+            error.contains("Sheet1") && error.contains("3 行目") && error.contains("playCount")
+        );
     }
 }

@@ -1,8 +1,8 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 /// 出題順. エクセルには数値 (0 = 先頭から / 1 = 出題回数が少ない順) で保存する.
 // フロントへは "head" / "fewer" の文字列で渡す
-#[derive(Serialize, Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum QuestionOrder {
     Head,
@@ -11,7 +11,7 @@ pub enum QuestionOrder {
 
 /// アイテム (エクセルの設定シートの内容).
 // フロントへはキャメルケース (display_name → displayName) で渡す
-#[derive(Serialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Item {
     pub file_path: String,             // エクセルのパス
@@ -38,4 +38,19 @@ pub struct ItemEntry {
     pub file_path: String,
     pub item: Option<Item>,            // 読み込めなかった場合は None
     pub error_message: Option<String>, // 読み込めた場合は None
+}
+
+/// 問題の１件
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct Question {
+    pub no: u32,
+    pub title1: String,
+    pub title2: String,
+    pub title3: String,
+    pub asked_count: u32,
+    pub english: String,
+    pub japanese: String,
+    pub memo: String,
+    pub is_hidden: bool,
 }

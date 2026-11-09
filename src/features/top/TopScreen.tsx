@@ -193,21 +193,15 @@ export const TopScreen = (props: TopScreenProps) => {
               id="item-list"
               className="flex-1 min-h-0 overflow-y-auto p-3 space-y-2"
             >
-              {isLoading ? (
-                <p className="text-xs text-slate-400 text-center py-4">
-                  読み込み中…
-                </p>
-              ) : (
-                entries.map((entry) => (
-                  <ItemRow
-                    key={entry.filePath}
-                    isSelected={entry.filePath === selectedPath}
-                    entry={entry}
-                    onSelect={handleSelectItem}
-                    onDelete={handleDeleteItem}
-                  />
-                ))
-              )}
+              {entries.map((entry) => (
+                <ItemRow
+                  key={entry.filePath}
+                  isSelected={entry.filePath === selectedPath}
+                  entry={entry}
+                  onSelect={handleSelectItem}
+                  onDelete={handleDeleteItem}
+                />
+              ))}
             </div>
 
             {/* Import Button (一覧と重ならないよう下部の帯に配置) */}

@@ -56,12 +56,20 @@ fn read_item_unchecked(file_path: &str) -> Result<Item, String> {
         audio_dir: reader.required_text(AUDIO_DIR_ROW, "audioDir")?,
         resume_no: reader.optional(RESUME_NO_ROW, "resumeNo")?,
         resume_order: reader.order_or_head(RESUME_ORDER_ROW, "resumeOrder")?,
-        question_count: reader.parse_or(QUESTION_COUNT_ROW, "questionCount", DEFAULT_QUESTION_COUNT)?,
+        question_count: reader.parse_or(
+            QUESTION_COUNT_ROW,
+            "questionCount",
+            DEFAULT_QUESTION_COUNT,
+        )?,
         question_order: reader.order_or_head(QUESTION_ORDER_ROW, "questionOrder")?,
         auto_play: reader.bool_or(AUTO_PLAY_ROW, "autoPlay", DEFAULT_AUTO_PLAY)?,
         repeat_count: reader.parse_or(REPEAT_COUNT_ROW, "repeatCount", DEFAULT_REPEAT_COUNT)?,
         auto_move: reader.bool_or(AUTO_MOVE_ROW, "autoMove", DEFAULT_AUTO_MOVE)?,
-        playback_speed: reader.parse_or(PLAYBACK_SPEED_ROW, "playbackSpeed", DEFAULT_PLAYBACK_SPEED)?,
+        playback_speed: reader.parse_or(
+            PLAYBACK_SPEED_ROW,
+            "playbackSpeed",
+            DEFAULT_PLAYBACK_SPEED,
+        )?,
     })
 }
 
@@ -95,7 +103,11 @@ impl SettingReader<'_> {
     }
 
     /// 数値などを読み込む. 空の場合は None.
-    fn optional<T: std::str::FromStr>(&self, row: u32, field_name: &str) -> Result<Option<T>, String> {
+    fn optional<T: std::str::FromStr>(
+        &self,
+        row: u32,
+        field_name: &str,
+    ) -> Result<Option<T>, String> {
         if self.text(row).is_empty() {
             return Ok(None);
         }
@@ -103,7 +115,12 @@ impl SettingReader<'_> {
     }
 
     /// 数値などを読み込む. 空の場合は既定値.
-    fn parse_or<T: std::str::FromStr>(&self, row: u32, field_name: &str, default: T) -> Result<T, String> {
+    fn parse_or<T: std::str::FromStr>(
+        &self,
+        row: u32,
+        field_name: &str,
+        default: T,
+    ) -> Result<T, String> {
         Ok(self.optional(row, field_name)?.unwrap_or(default))
     }
 
@@ -139,7 +156,11 @@ mod tests {
 
     /// テスト用の一時ファイルのパスを返す.
     fn temp_path(name: &str) -> PathBuf {
-        std::env::temp_dir().join(format!("my_english_setting_test_{}_{}.xlsx", name, std::process::id()))
+        std::env::temp_dir().join(format!(
+            "my_english_setting_test_{}_{}.xlsx",
+            name,
+            std::process::id()
+        ))
     }
 
     /// 設定シートに C1 から順に値を書いたエクセルを作り、そのパスを返す.
@@ -161,7 +182,22 @@ mod tests {
     fn 全項目を読み込める() {
         let path = create_book(
             "all",
-            &["20260809", "表示名", "3", "4", "3", "./audio", "15", "1", "20", "1", "FALSE", "2", "TRUE", "1.2"],
+            &[
+                "20260809",
+                "表示名",
+                "3",
+                "4",
+                "3",
+                "./audio",
+                "15",
+                "1",
+                "20",
+                "1",
+                "FALSE",
+                "2",
+                "TRUE",
+                "1.2",
+            ],
         );
         let item = read_item(path.to_str().unwrap()).unwrap();
         assert_eq!(item.id, "20260809");

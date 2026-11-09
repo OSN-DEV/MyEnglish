@@ -7,6 +7,7 @@
 - `doc/spec.md` — **データと挙動の唯一の正**。挙動に迷ったらここに従い、推測で補わない
 - `doc/ui.md` / `doc/ui.html` — 画面レイアウト・配色
 - 仕様と実装がずれる変更をしたら `doc/spec.md` も更新する (`/spec-sync`)
+- Planの実行結果はdoc/planフォルダ配下にファイルを出力する。ファイル名は日付(年月日時刻秒.md)とする
 
 ## 技術構成
 - Tauri 2 (Rust) + React + TypeScript + Vite + Tailwind CSS v4、パッケージマネージャは pnpm
@@ -32,7 +33,7 @@
 - 開発起動: `pnpm tauri dev`
 - フロントのビルド / 型チェック: `pnpm build` / `pnpm exec tsc --noEmit`
 - Rust: `cargo check` / `cargo test` / `cargo clippy` (`--manifest-path src-tauri/Cargo.toml`)
-- テスト: (テストランナー導入後に追記)
+- テスト (フロント): `pnpm test` (Vitest。テストは対象と同じフォルダに `*.test.ts` で置く)
 
 ## 用語 (コード上の命名もこれに合わせる)
 | 仕様の用語 | 意味 | 命名例 |

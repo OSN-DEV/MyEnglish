@@ -1,10 +1,11 @@
 pub mod debug_menu;
 pub mod excel;
 pub mod model;
+pub mod question_sheet;
 pub mod setting_sheet;
 pub mod store;
 
-use crate::model::{Item, ItemEntry};
+use crate::model::{Item, ItemEntry, Question};
 use std::path::Path;
 use tauri::AppHandle;
 
@@ -16,7 +17,12 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .menu(debug_menu::build)
         .on_menu_event(debug_menu::handle_event)
-        .invoke_handler(tauri::generate_handler![get_items, add_item, remove_item])
+        .invoke_handler(tauri::generate_handler![
+            get_items,
+            add_item,
+            remove_item,
+            get_questions
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
@@ -76,4 +82,11 @@ fn load_entry(path: &str) -> ItemEntry {
             error_message: Some(e),
         },
     }
+}
+
+/// 問題の一覧を取得する
+#[tauri::command]
+fn get_questions(item: Item) -> Result<Vec<Question>, String> {
+    let questions = question_sheet::read_questions(&item)?;
+    Ok(questions)
 }
