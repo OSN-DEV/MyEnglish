@@ -26,3 +26,11 @@ export const addItem = async (filePath: string): Promise<Item> => {
 export const removeItem = async (filePath: string): Promise<void> => {
   return invoke("remove_item", { filePath });
 };
+
+/**
+ * アイテム一覧の並び順を保存する.
+ * @param filePaths 並べ替え後のエクセルのパス (登録済みのパスすべて)
+ */
+export const reorderItems = async (filePaths: string[]): Promise<void> => {
+  return invoke("reorder_items", { filePaths });
+};

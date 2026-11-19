@@ -18,7 +18,7 @@ import {
 } from "./logic/session";
 
 /** 自動再生の繰り返し終了から次の問題へ移動するまでの待ち時間 (ミリ秒) */
-const AUTO_MOVE_DELAY_MS = 300;
+const AUTO_MOVE_DELAY_MS = 50;
 
 /** 秒数を「分:秒」(例 0:03) にする */
 const formatTime = (sec: number): string => {
@@ -34,8 +34,11 @@ interface QuestionScreenProps {
   item: Item
   /** 開始時のセッション (startSession の戻り値) */
   initialSession: SessionState
-  /** セッション終了 (最後の問題で「次へ」・終了ボタン) を親へ通知する. 親がエクセルへ書き戻す */
-  onFinish: (session: SessionState) => void
+  /**
+   * セッション終了 (最後の問題で「次へ」・終了ボタン) を親へ通知する. 親がエクセルへ書き戻す.
+   * playbackSpeed は終了時点の再生速度 (問題画面で変更した値も保存する)
+   */
+  onFinish: (session: SessionState, playbackSpeed: number) => void
 }
 
 /**
@@ -153,11 +156,17 @@ export const QuestionScreen = (props: QuestionScreenProps) => {
     play();
   };
 
+  // 終了を親へ通知済みか. 書き戻し中・失敗ダイアログ表示中もこの画面は残るため、
+  // キー操作や自動移動で二重に終了しないようにする
+  const isFinishedRef = useRef(false);
+
   /** セッションを終えて親へ通知する (音声は止める) */
   const finish = (finalSession: SessionState) => {
+    if (isFinishedRef.current) return;
+    isFinishedRef.current = true;
     clearAutoMoveTimer();
     pause();
-    onFinish(finalSession);
+    onFinish(finalSession, playbackRate);
   };
 
   /**
@@ -190,6 +199,40 @@ export const QuestionScreen = (props: QuestionScreenProps) => {
   const handleHiddenChange = (isHidden: boolean) => {
     setSession(setHidden(session, question.no, isHidden));
   };
+
+  /**
+   * キーボードショートカット (spec 5.7).
+   * Space: 再生・一時停止 / Shift+Space: 問題を非表示のトグル / n: 次へ / Esc: 終了 (中断)
+   */
+  const handleKeyDown = (e: KeyboardEvent) => {
+    if (isFinishedRef.current) return;
+    // 押しっぱなしの連続発火や、修飾キー付き (Cmd+N など) は無視する
+    if (e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
+    // 再生速度のセレクトボックス操作中はキーをそちらに任せる
+    if (e.target instanceof HTMLSelectElement) return;
+
+    if (e.key === " " && e.shiftKey) {
+      // Shift+Space: 「問題を非表示」をトグル (音声の有無に関係なく使える)
+      e.preventDefault();
+      handleHiddenChange(!isHiddenInSession(session, question.no));
+    } else if (e.key === " ") {
+      // フォーカス中のボタンやチェックボックスが Space で押されるのを防ぐ
+      e.preventDefault();
+      if (isAudioAvailable) handlePlayPauseClick();
+    } else if (e.key === "n" || e.key === "N") {
+      handleNextClick();
+    } else if (e.key === "Escape") {
+      handleExitClick();
+    }
+  };
+  // リスナーは 1 回だけ登録し、最新の状態を見る処理を ref 経由で呼ぶ
+  const handleKeyDownRef = useRef(handleKeyDown);
+  handleKeyDownRef.current = handleKeyDown;
+  useEffect(() => {
+    const listener = (e: KeyboardEvent) => handleKeyDownRef.current(e);
+    window.addEventListener("keydown", listener);
+    return () => window.removeEventListener("keydown", listener);
+  }, []);
 
   return (
     <div
@@ -279,19 +322,12 @@ export const QuestionScreen = (props: QuestionScreenProps) => {
               <span className="text-[10px] font-bold tracking-wider uppercase text-slate-400">
                 Japanese
               </span>
-              <button
-                id="btn-toggle-jp"
-                className="text-xs text-indigo-600 hover:text-indigo-700 font-medium flex items-center gap-1 focus:outline-none"
-              >
-                <Eye id="icon-jp-eye"
-                  className="w-3.5 h-3.5" />
-                <span id="text-toggle-jp">日本語訳を隠す</span>
-              </button>
+
             </div>
             <div id="wrapper-jp" className="transition-all duration-200">
               <p
                 id="q-text-jp"
-                className="whitespace-pre-line text-sm font-medium text-slate-600 leading-relaxed bg-slate-50 p-3 rounded-xl border border-slate-100"
+                className="whitespace-pre-line text-base font-medium text-slate-600 leading-relaxed bg-slate-50 p-3 rounded-xl border border-slate-100"
               >
                 {question.japanese}
               </p>
@@ -307,7 +343,7 @@ export const QuestionScreen = (props: QuestionScreenProps) => {
           </div>
           <div
             id="q-notes"
-            className="text-xs text-slate-600 leading-normal space-y-1"
+            className="text-base text-slate-600 leading-normal space-y-1"
           >
             <p className="whitespace-pre-line">
               {question.memo}
@@ -359,7 +395,7 @@ export const QuestionScreen = (props: QuestionScreenProps) => {
                 className="rounded text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5"
               />
               <span className="text-xs font-semibold text-slate-600">
-                問題を非表示
+                問題を非表示 - times:{question.askedCount}
               </span>
             </label>
 

@@ -28,6 +28,8 @@ function App() {
   const [screen, setScreen] = useState<Screen>({ name: "top" });
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  // 最後に開始したアイテムのパス. TOP に戻ったとき、そのアイテムを選択した状態にする
+  const [lastItemPath, setLastItemPath] = useState<string | null>(null);
   // 書き戻しに失敗したときの、再試行する内容とエラー. null ならダイアログを出さない
   const [saveError, setSaveError] = useState<{ result: SessionResult; message: string } | null>(
     null,
@@ -51,7 +53,7 @@ function App() {
         return;
       }
 
-      console.log(`handleStartClick: ${session.questions.length}`)
+      setLastItemPath(item.filePath);
       setScreen({ name: "question", item, session });
     } catch (error) {
       setErrorMessage(`問題一覧の取得に失敗しました: ${error}`);
@@ -79,9 +81,10 @@ function App() {
   /**
    * 問題画面の終了 (最後の問題で「次へ」・終了ボタン) 時の処理.
    * セッションの結果をエクセルへまとめて 1 回書き戻してから、トップ画面へ戻る (spec 6).
+   * 再生速度は問題画面で変更した値 (終了時点の値) を保存する.
    */
-  const handleFinish = (item: Item, session: SessionState) => {
-    save(toSessionResult(session, item));
+  const handleFinish = (item: Item, session: SessionState, playbackSpeed: number) => {
+    save(toSessionResult(session, { ...item, playbackSpeed }));
   };
 
   /** 書き戻し失敗ダイアログの「キャンセル」. 保存せずにトップ画面へ戻る */
@@ -92,12 +95,16 @@ function App() {
 
   return (
     <div className="w-full h-screen bg-white md:rounded-2xl shadow-xl flex flex-col overflow-hidden relative border border-slate-200/80">
-      {screen.name === "top" && <TopScreen onStartClick={handleStartClick} />}
+      {screen.name === "top" && (
+        <TopScreen initialSelectedPath={lastItemPath} onStartClick={handleStartClick} />
+      )}
       {screen.name === "question" && (
         <QuestionScreen
           item={screen.item}
           initialSession={screen.session}
-          onFinish={(session) => handleFinish(screen.item, session)}
+          onFinish={(session, playbackSpeed) =>
+            handleFinish(screen.item, session, playbackSpeed)
+          }
         />
       )}
       {errorMessage && (

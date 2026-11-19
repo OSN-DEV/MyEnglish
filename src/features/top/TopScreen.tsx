@@ -11,13 +11,36 @@ import {
 import { useEffect, useState } from "react";
 import { getVersion } from "@tauri-apps/api/app";
 import { open } from "@tauri-apps/plugin-dialog";
-import { addItem, getItems, removeItem } from "../../repositories/ItemRepository";
+import {
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { restrictToVerticalAxis, restrictToParentElement } from "@dnd-kit/modifiers";
+import {
+  addItem,
+  getItems,
+  removeItem,
+  reorderItems,
+} from "../../repositories/ItemRepository";
 import { ItemRow } from "./components/ItemRow";
 import type { Item, ItemEntry } from "../../types/Item";
 import { SPEED_OPTIONS } from "../../constants";
 import Loading from "../../components/Loading";
 
 interface TopScreenProps {
+  /** 一覧を読み込んだときに選択するアイテムのパス. 一覧に無い・null なら先頭を選択する */
+  initialSelectedPath: string | null;
   onStartClick: (item: Item, isResume: boolean) => void;
 }
 
@@ -36,14 +59,17 @@ export const TopScreen = (props: TopScreenProps) => {
   // 選択中のアイテムは一覧から導出する (コピーを別の state に持たない)
   const currentItem =
     entries.find((entry) => entry.filePath === selectedPath)?.item ?? null;
-  const { onStartClick } = props;
+  const { initialSelectedPath, onStartClick } = props;
 
   useEffect(() => {
     const fetchItems = async () => {
       try {
         const entries = await getItems();
         setEntries(entries);
-        setSelectedPath(entries[0]?.filePath ?? null);
+        // 問題画面から戻ったときは、直前に使っていたアイテムを選択したままにする
+        const initialEntry =
+          entries.find((entry) => entry.filePath === initialSelectedPath) ?? entries[0];
+        setSelectedPath(initialEntry?.filePath ?? null);
       } catch (error) {
         setErrorMessage(`アイテム一覧の取得に失敗しました: ${error}`);
       } finally {
@@ -53,6 +79,7 @@ export const TopScreen = (props: TopScreenProps) => {
 
     fetchItems();
     getVersion().then(setAppVersion);
+    // 初期選択はマウント時の値だけを使う (一覧の読み込みは 1 回)
   }, []);
 
   /**
@@ -81,6 +108,33 @@ export const TopScreen = (props: TopScreenProps) => {
     );
     if (entry.filePath === selectedPath) {
       setSelectedPath(null);
+    }
+  };
+
+  // 並び替えの操作方法: マウス (4px 動かしたらドラッグ開始。クリックと区別する) とキーボード
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  /**
+   * 一覧の行をドラッグして離したときの処理.
+   * 画面の並びを先に入れ替え、保存に失敗したら元の並びに戻す.
+   */
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over === null || active.id === over.id) return;
+
+    const prevEntries = entries;
+    const from = prevEntries.findIndex((entry) => entry.filePath === active.id);
+    const to = prevEntries.findIndex((entry) => entry.filePath === over.id);
+    const nextEntries = arrayMove(prevEntries, from, to);
+    setEntries(nextEntries);
+    try {
+      await reorderItems(nextEntries.map((entry) => entry.filePath));
+    } catch (error) {
+      setEntries(prevEntries);
+      setErrorMessage(`並び順の保存に失敗しました: ${error}`);
     }
   };
 
@@ -193,15 +247,28 @@ export const TopScreen = (props: TopScreenProps) => {
               id="item-list"
               className="flex-1 min-h-0 overflow-y-auto p-3 space-y-2"
             >
-              {entries.map((entry) => (
-                <ItemRow
-                  key={entry.filePath}
-                  isSelected={entry.filePath === selectedPath}
-                  entry={entry}
-                  onSelect={handleSelectItem}
-                  onDelete={handleDeleteItem}
-                />
-              ))}
+              {/* 行の並び替え (ドラッグ & ドロップ). 並びはアイテム一覧の保存順に反映する */}
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                modifiers={[restrictToVerticalAxis, restrictToParentElement]}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext
+                  items={entries.map((entry) => entry.filePath)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  {entries.map((entry) => (
+                    <ItemRow
+                      key={entry.filePath}
+                      isSelected={entry.filePath === selectedPath}
+                      entry={entry}
+                      onSelect={handleSelectItem}
+                      onDelete={handleDeleteItem}
+                    />
+                  ))}
+                </SortableContext>
+              </DndContext>
             </div>
 
             {/* Import Button (一覧と重ならないよう下部の帯に配置) */}
@@ -255,7 +322,8 @@ export const TopScreen = (props: TopScreenProps) => {
                 value={currentItem?.questionCount ?? ""}
                 type="number"
                 id="setting-count"
-                min="1"
+                min="0"
+                title="0 で全件"
                 className="w-12 text-center text-xs py-1.5 font-medium bg-transparent focus:outline-none"
               />
             </div>

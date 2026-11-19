@@ -23,6 +23,7 @@ pub fn run() {
             get_items,
             add_item,
             remove_item,
+            reorder_items,
             get_questions,
             find_audio_file,
             save_session
@@ -65,6 +66,12 @@ fn add_item(app: AppHandle, file_path: String) -> Result<Item, String> {
 #[tauri::command]
 fn remove_item(app: AppHandle, file_path: String) -> Result<(), String> {
     store::remove_item_path(&app, &file_path)
+}
+
+/// アイテム一覧を、指定したパスの並び順で保存する (トップ画面の手動並び替え).
+#[tauri::command]
+fn reorder_items(app: AppHandle, file_paths: Vec<String>) -> Result<(), String> {
+    store::reorder_item_paths(&app, &file_paths)
 }
 
 /// 1 件分のアイテムを読み込む. 失敗した場合はエラーメッセージを持たせる.
