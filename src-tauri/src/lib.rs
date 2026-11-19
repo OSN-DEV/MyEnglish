@@ -1,11 +1,13 @@
+pub mod audio;
 pub mod debug_menu;
 pub mod excel;
 pub mod model;
 pub mod question_sheet;
+pub mod session_writer;
 pub mod setting_sheet;
 pub mod store;
 
-use crate::model::{Item, ItemEntry, Question};
+use crate::model::{Item, ItemEntry, Question, SessionResult};
 use std::path::Path;
 use tauri::AppHandle;
 
@@ -21,7 +23,9 @@ pub fn run() {
             get_items,
             add_item,
             remove_item,
-            get_questions
+            get_questions,
+            find_audio_file,
+            save_session
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -90,4 +94,18 @@ fn get_questions(item: Item) -> Result<Vec<Question>, String> {
     let questions = question_sheet::read_questions(&item)?;
     println!("get_questions {}", questions.len());
     Ok(questions)
+}
+
+/// 音声ファイルの候補のうち、最初に存在するもののパスを返す (どれも無ければ null).
+/// Option を返すと、フロントには Some(パス) は文字列、None は null として届く
+#[tauri::command]
+fn find_audio_file(candidates: Vec<String>) -> Option<String> {
+    audio::find_existing_file(&candidates)
+}
+
+/// セッションの結果をエクセルへ書き戻す (セッション終了時に 1 回).
+/// 失敗したらエラーメッセージを返し、フロントで「再試行 / キャンセル」を選ばせる
+#[tauri::command]
+fn save_session(result: SessionResult) -> Result<(), String> {
+    session_writer::save_session(&result)
 }

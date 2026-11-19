@@ -73,6 +73,45 @@ fn read_item_unchecked(file_path: &str) -> Result<Item, String> {
     })
 }
 
+/// 設定シートの書き戻し対象 (C 列 3・7〜14 行目) をブックに書き込む (保存は呼び出し側で行う).
+/// 1〜2・4〜6 行目と C 列以外のセルには触れない.
+pub fn write_item(excel: &mut ExcelHandler, item: &Item) -> Result<(), String> {
+    let mut sheet = excel.sheet_mut(SHEET_NAME)?;
+    // set_value は文字列から型を推定して保存する ("3" → 数値、"TRUE" → 真偽値、"" → 空)
+    let values = [
+        (PLAY_COUNT_ROW, item.play_count.to_string()),
+        (
+            RESUME_NO_ROW,
+            // map: Some のときだけ中身を変換する. unwrap_or_default: None なら空文字
+            item.resume_no.map(|no| no.to_string()).unwrap_or_default(),
+        ),
+        (RESUME_ORDER_ROW, order_value(item.resume_order).to_string()),
+        (QUESTION_COUNT_ROW, item.question_count.to_string()),
+        (QUESTION_ORDER_ROW, order_value(item.question_order).to_string()),
+        (AUTO_PLAY_ROW, bool_value(item.auto_play).to_string()),
+        (REPEAT_COUNT_ROW, item.repeat_count.to_string()),
+        (AUTO_MOVE_ROW, bool_value(item.auto_move).to_string()),
+        (PLAYBACK_SPEED_ROW, item.playback_speed.to_string()),
+    ];
+    for (row, value) in values {
+        sheet.set_cell_rc(row, VALUE_COL, &value);
+    }
+    Ok(())
+}
+
+/// 出題順をエクセルの値 (0 = 先頭から / 1 = 出題回数が少ない順) にする
+fn order_value(order: QuestionOrder) -> &'static str {
+    match order {
+        QuestionOrder::Head => "0",
+        QuestionOrder::Fewer => "1",
+    }
+}
+
+/// 真偽値をエクセルの値にする
+fn bool_value(value: bool) -> &'static str {
+    if value { "TRUE" } else { "FALSE" }
+}
+
 /// 設定シートの値を、項目の型に合わせて読み込む.
 //<'a> ライフタイムパラメータ。
 // SettingReaderが生きている間はSheetのインスタンスはメモリから削除されないことをコンパイラに約束している？
@@ -231,6 +270,57 @@ mod tests {
         let path = create_book("required", &["1", "", "0", "4", "3", "./audio"]);
         let error = read_item(path.to_str().unwrap()).unwrap_err();
         assert!(error.contains("displayName"));
+        std::fs::remove_file(&path).ok();
+    }
+
+    #[test]
+    fn 書き戻し対象の行だけを書き込み_読み直せる() {
+        let path = create_book(
+            "write",
+            &["1", "表示名", "0", "4", "3", "./audio", "", "", "", "", "", "", "", ""],
+        );
+        let mut item = read_item(path.to_str().unwrap()).unwrap();
+        item.play_count = 2;
+        item.hidden_threshold = 99; // 書き戻し対象外なので保存されないはず
+        item.resume_no = Some(12);
+        item.resume_order = QuestionOrder::Fewer;
+        item.question_count = 0;
+        item.question_order = QuestionOrder::Fewer;
+        item.auto_play = false;
+        item.repeat_count = 3;
+        item.auto_move = true;
+        item.playback_speed = 1.3;
+
+        let mut excel = ExcelHandler::open(&path).unwrap();
+        excel.sheet_mut(SHEET_NAME).unwrap().set_cell("D3", "メモ");
+        write_item(&mut excel, &item).unwrap();
+        excel.save().unwrap();
+
+        let reread = read_item(path.to_str().unwrap()).unwrap();
+        assert_eq!(reread.play_count, 2);
+        assert_eq!(reread.hidden_threshold, 4);
+        assert_eq!(reread.resume_no, Some(12));
+        assert_eq!(reread.resume_order, QuestionOrder::Fewer);
+        assert_eq!(reread.question_count, 0);
+        assert_eq!(reread.question_order, QuestionOrder::Fewer);
+        assert!(!reread.auto_play);
+        assert_eq!(reread.repeat_count, 3);
+        assert!(reread.auto_move);
+        assert_eq!(reread.playback_speed, 1.3);
+        let excel = ExcelHandler::open(&path).unwrap();
+        assert_eq!(excel.sheet(SHEET_NAME).unwrap().get_cell("D3"), "メモ");
+        std::fs::remove_file(&path).ok();
+    }
+
+    #[test]
+    fn resume_no_が_none_なら空にする() {
+        let path = create_book("write_none", &["1", "表示名", "0", "4", "3", "./audio", "5"]);
+        let mut item = read_item(path.to_str().unwrap()).unwrap();
+        item.resume_no = None;
+        let mut excel = ExcelHandler::open(&path).unwrap();
+        write_item(&mut excel, &item).unwrap();
+        excel.save().unwrap();
+        assert_eq!(read_item(path.to_str().unwrap()).unwrap().resume_no, None);
         std::fs::remove_file(&path).ok();
     }
 }

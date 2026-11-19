@@ -1,5 +1,6 @@
 use crate::excel::{ExcelHandler, Sheet};
-use crate::model::{Item, Question, QuestionOrder};
+use crate::model::{Item, Question, QuestionOrder, QuestionProgress};
+use std::collections::HashMap;
 
 /// 問題シートのシート名
 const SHEET_NAME: &str = "Phrases";
@@ -17,7 +18,8 @@ const JAPANESE_COL: u32 = 7;
 const MEMO_COL: u32 = 8;
 const IS_HIDDEN_COL: u32 = 9;
 
-/// 出題対象の問題を、出題順に並べて取得する (出題数では切り詰めない)
+/// 全問題を、出題順に並べて取得する (出題対象外も含む。出題数では切り詰めない).
+/// 出題対象外も返すのは、再開位置の問題が対象外になったときに「並び順でその次」を求めるため
 pub fn read_questions(item: &Item) -> Result<Vec<Question>, String> {
     // TODO エラーメッセージにセルの情報を入れたい
     std::panic::catch_unwind(|| read_questions_unchecked(item)).unwrap_or_else(|_| {
@@ -69,16 +71,9 @@ println!("file {}", item.file_path);
         }
 
         let no = reader.parse(row, NO_COL, "no")?;
+        // 出題対象かどうか (閾値・非表示) の判定はフロントで行うため、ここでは除外しない
         let asked_count = reader.parse_or(row, ASKED_COUNT_COL, "askedCount", 0)?;
-        if item.hidden_threshold <= asked_count {
-// println!("continue1");
-            continue;
-        }
         let is_hidden = reader.bool_or(row, IS_HIDDEN_COL, "isHidden", false)?;
-        if is_hidden {
-// println!("continue2");
-            continue;
-        }
         let english = reader.required_text(row, ENGLISH_COL, "english")?;
         let japanese = reader.text(row, JAPANESE_COL);
         let memo = reader.text(row, MEMO_COL);
@@ -114,8 +109,50 @@ println!("file {}", item.file_path);
         }),
     }
 
-    // 出題数での切り詰めは、再開位置・周回の判定に全件が必要なためフロントで行う
+    // 出題対象の抽出と出題数での切り詰めは、フロントで行う (features/question/logic/session.ts)
     Ok(questions)
+}
+
+/// 問題ごとの出題回数 (E 列)・非表示 (I 列) をブックに書き込む (保存は呼び出し側で行う).
+/// 他の列・行には触れない. 書き込む行は A 列の No で探す.
+pub fn write_progresses(
+    excel: &mut ExcelHandler,
+    progresses: &[QuestionProgress],
+) -> Result<(), String> {
+    let mut sheet = excel.sheet_mut(SHEET_NAME)?;
+
+    // No → 行番号 の対応を作る (読み込みと同じく、英文が空の行で終わり)
+    // HashMap はキーから値を引ける辞書. new() で空のものを作り、insert で追加する
+    let mut rows_by_no: HashMap<u32, u32> = HashMap::new();
+    {
+        // このブロックの中だけ読み込み用として借りる. ブロックを抜けると借用が終わり、下で書き込める
+        let reader_sheet = sheet.as_sheet();
+        let reader = QuestionReader { sheet: &reader_sheet };
+        let mut row = START_ROW;
+        while !reader.text(row, ENGLISH_COL).is_empty() {
+            let no: u32 = reader.parse(row, NO_COL, "no")?;
+            rows_by_no.insert(no, row);
+            row += 1;
+        }
+    }
+
+    for progress in progresses {
+        // get は Option<&u32> を返す. ok_or_else で None をエラーに変え、? で返す
+        let row = *rows_by_no.get(&progress.no).ok_or_else(|| {
+            format!(
+                "シート '{}' に No {} の問題が見つかりません",
+                SHEET_NAME, progress.no
+            )
+        })?;
+        // if let Some(x) = ...: Some のときだけ中身を x に取り出して処理する
+        if let Some(asked_count) = progress.asked_count {
+            sheet.set_cell_rc(row, ASKED_COUNT_COL, &asked_count.to_string());
+        }
+        if let Some(is_hidden) = progress.is_hidden {
+            sheet.set_cell_rc(row, IS_HIDDEN_COL, if is_hidden { "TRUE" } else { "FALSE" });
+        }
+    }
+    Ok(())
 }
 
 /// 問題シートの値を、項目の型に合わせて読み込む.
@@ -189,5 +226,62 @@ impl QuestionReader<'_> {
             ));
         }
         Ok(value)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    fn temp_path(name: &str) -> PathBuf {
+        std::env::temp_dir().join(format!(
+            "my_english_question_test_{}_{}.xlsx",
+            name,
+            std::process::id()
+        ))
+    }
+
+    /// No・出題回数・英文・非表示だけを入れた問題シートを作る. rows: (No, 出題回数, 英文)
+    fn create_book(name: &str, rows: &[(&str, &str, &str)]) -> ExcelHandler {
+        let mut excel = ExcelHandler::create_new(temp_path(name));
+        excel.add_sheet(SHEET_NAME).unwrap();
+        let mut sheet = excel.sheet_mut(SHEET_NAME).unwrap();
+        sheet.set_cell("A1", "No");
+        // enumerate: (番号, 要素) の組で回す
+        for (i, (no, asked, english)) in rows.iter().enumerate() {
+            let row = START_ROW + i as u32;
+            sheet.set_cell_rc(row, NO_COL, no);
+            sheet.set_cell_rc(row, ASKED_COUNT_COL, asked);
+            sheet.set_cell_rc(row, ENGLISH_COL, english);
+            sheet.set_cell_rc(row, MEMO_COL, "memo");
+        }
+        excel
+    }
+
+    #[test]
+    fn 変更した問題の出題回数と非表示だけを書き込む() {
+        let mut excel = create_book("write", &[("1", "2", "a"), ("2", "", "b"), ("3", "0", "c")]);
+        let progresses = vec![
+            QuestionProgress { no: 2, asked_count: Some(1), is_hidden: None },
+            QuestionProgress { no: 3, asked_count: None, is_hidden: Some(true) },
+        ];
+        write_progresses(&mut excel, &progresses).unwrap();
+
+        let sheet = excel.sheet(SHEET_NAME).unwrap();
+        assert_eq!(sheet.get_cell("E2"), "2"); // No 1 は変更なし
+        assert_eq!(sheet.get_cell("E3"), "1");
+        assert_eq!(sheet.get_cell("I3"), ""); // None は書かない
+        assert_eq!(sheet.get_cell("E4"), "0");
+        assert_eq!(sheet.get_cell("I4").to_uppercase(), "TRUE");
+        assert_eq!(sheet.get_cell("H3"), "memo"); // 他の列は変わらない
+    }
+
+    #[test]
+    fn 見つからない_no_はエラーになる() {
+        let mut excel = create_book("missing_no", &[("1", "0", "a")]);
+        let progresses = vec![QuestionProgress { no: 9, asked_count: Some(1), is_hidden: None }];
+        let error = write_progresses(&mut excel, &progresses).unwrap_err();
+        assert!(error.contains("No 9"));
     }
 }

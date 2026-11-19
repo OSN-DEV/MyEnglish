@@ -1,15 +1,41 @@
-import { ArrowLeft, ChevronLeft, ChevronRight, Eye, Gauge, Play, RotateCcw, StickyNote } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, Eye, Gauge, Pause, Play, RotateCcw, StickyNote } from "lucide-react";
 import type { Item } from "../../types/Item";
-import type { Question } from "../../types/Question";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { SPEED_OPTIONS } from "../../constants";
+import { convertFileSrc } from "@tauri-apps/api/core";
+import { useAudioPlayer } from "./hooks/useAudioPlayer";
+import { resolveAudioPathCandidates } from "./logic/audioPath";
+import { findAudioFile } from "../../repositories/AudioRepository";
+import { decideAfterEnded } from "./logic/playback";
+import {
+  currentQuestion,
+  goNext,
+  goPrev,
+  interruptSession,
+  isHiddenInSession,
+  setHidden,
+  type SessionState,
+} from "./logic/session";
+
+/** 自動再生の繰り返し終了から次の問題へ移動するまでの待ち時間 (ミリ秒) */
+const AUTO_MOVE_DELAY_MS = 300;
+
+/** 秒数を「分:秒」(例 0:03) にする */
+const formatTime = (sec: number): string => {
+  const safe = Number.isFinite(sec) ? Math.max(0, sec) : 0;
+  const m = Math.floor(safe / 60);
+  const s = Math.floor(safe % 60);
+  return `${m}:${String(s).padStart(2, "0")}`;
+};
 
 
 interface QuestionScreenProps {
+  /** 開始時の設定 */
   item: Item
-  questions: Question[]
-  onExit: () => void
-  onComplete: () => void
+  /** 開始時のセッション (startSession の戻り値) */
+  initialSession: SessionState
+  /** セッション終了 (最後の問題で「次へ」・終了ボタン) を親へ通知する. 親がエクセルへ書き戻す */
+  onFinish: (session: SessionState) => void
 }
 
 /**
@@ -17,27 +43,153 @@ interface QuestionScreenProps {
  * 問題を 1 問ずつ表示し、音声の再生と問題の移動を行う.
  */
 export const QuestionScreen = (props: QuestionScreenProps) => {
-  const {item, questions, onExit, onComplete} = props;
-  
-  // TODO:このあたりはリストの作り方を考えてから、改めて実装する
-  const no = item.resumeNo ??   questions[0].no;
-  // resumeNo の問題が今回の問題に無い場合は先頭から表示する
-  const [index, setIndex] = useState<number>(
-    Math.max(0, questions.findIndex((q) => q.no === no))
-  )
-  const question = questions[index];
+  const {item, initialSession, onFinish} = props;
+
+  // 出題の進行状態. 操作ごとに logic/session.ts の純粋関数で新しい状態に置き換える
+  const [session, setSession] = useState<SessionState>(initialSession);
+  const question = currentQuestion(session);
+  const { index, questions } = session;
+
+  // 問題の音声の URL (asset://)。探している間・見つからない間は null
+  const [audioSrc, setAudioSrc] = useState<string | null>(null);
+  // 音声ファイルが無い・読めない問題では false にして再生系ボタンを無効化する (spec 3.3)
+  const [isAudioAvailable, setIsAudioAvailable] = useState(false);
+  // この問題で自動再生を再生し終えた回数
+  const playedCountRef = useRef(0);
+  // 自動移動 (再生後に次の問題へ) の待ちタイマー
+  const autoMoveTimerRef = useRef<number | null>(null);
+
+  const clearAutoMoveTimer = () => {
+    if (autoMoveTimerRef.current !== null) {
+      window.clearTimeout(autoMoveTimerRef.current);
+      autoMoveTimerRef.current = null;
+    }
+  };
+
+  // 問題が変わったら音声ファイルを探す (4 桁ゼロ埋め → 3 桁ゼロ埋めの順。spec 3.3)
+  useEffect(() => {
+    // 探している間に別の問題へ移った場合、古い結果を捨てるためのフラグ
+    let isCancelled = false;
+    setAudioSrc(null);
+    setIsAudioAvailable(false);
+    const candidates = resolveAudioPathCandidates(item.filePath, item.audioDir, question.no);
+    findAudioFile(candidates)
+      .then((path) => {
+        if (isCancelled || path === null) return;
+        // asset:// の URL に変換して <audio> で読めるようにする
+        setAudioSrc(convertFileSrc(path));
+        setIsAudioAvailable(true);
+      })
+      .catch((error) => console.error("音声ファイルの確認に失敗しました:", error));
+    return () => {
+      isCancelled = true;
+    };
+  }, [item.filePath, item.audioDir, question.no]);
+
+  const {
+    isPlaying,
+    currentTime,
+    duration,
+    playbackRate,
+    play,
+    pause,
+    seek,
+    seekToStart,
+    setPlaybackRate,
+  } = useAudioPlayer({
+    src: audioSrc,
+    onEnded: () => handleAudioEnded(),
+    onError: () => setIsAudioAvailable(false),
+  });
+
+  // 再生速度は前回値 (トップ画面の設定) から始める
+  useEffect(() => {
+    setPlaybackRate(item.playbackSpeed ?? 1.0);
+  }, [item.playbackSpeed, setPlaybackRate]);
+
+  // 問題の音声が見つかったら、自動再生 ON なら再生する (spec 5.6)
+  useEffect(() => {
+    playedCountRef.current = 0;
+    clearAutoMoveTimer();
+    if (audioSrc !== null && item.autoPlay) {
+      play();
+    }
+    return clearAutoMoveTimer;
+  }, [audioSrc, item.autoPlay, play]);
 
   /**
-   * 次へボタンを押したときの処理.
-   * 最後の問題なら完了を親へ通知し、それ以外は次の問題へ進む.
+   * 音声の再生が終わったときの処理.
+   * 自動再生なら再生回数まで繰り返し、終わったら (autoMove ON なら) AUTO_MOVE_DELAY_MS 後に次の問題へ.
+   */
+  const handleAudioEnded = () => {
+    if (!item.autoPlay) return;
+    playedCountRef.current += 1;
+    const action = decideAfterEnded(playedCountRef.current, item.repeatCount, item.autoMove);
+    if (action === "replay") {
+      seekToStart();
+      play();
+    } else if (action === "moveNext") {
+      clearAutoMoveTimer();
+      // 待っている間に非表示などを操作しても最新の状態で進むよう、ref 経由で呼ぶ
+      autoMoveTimerRef.current = window.setTimeout(
+        () => handleNextRef.current(),
+        AUTO_MOVE_DELAY_MS,
+      );
+    }
+  };
+
+  /** 再生・一時停止ボタン */
+  const handlePlayPauseClick = () => {
+    if (isPlaying) {
+      pause();
+    } else {
+      play();
+    }
+  };
+
+  /** 先頭から再生ボタン */
+  const handleRestartClick = () => {
+    seekToStart();
+    play();
+  };
+
+  /** セッションを終えて親へ通知する (音声は止める) */
+  const finish = (finalSession: SessionState) => {
+    clearAutoMoveTimer();
+    pause();
+    onFinish(finalSession);
+  };
+
+  /**
+   * 次へボタンを押したときの処理 (自動移動も同じ).
+   * 表示中の問題の出題回数を +1 し、最後の問題ならセッション終了、それ以外は次の問題へ進む.
    */
   const handleNextClick = () => {
-    if (questions.length <= index + 1) {
-      onComplete();
+    const result = goNext(session);
+    if (result.isFinished) {
+      finish(result.state);
     } else {
-      setIndex((prev) => prev + 1);
+      setSession(result.state);
     }
-  }
+  };
+  // タイマーから呼ぶ用. 毎回のレンダリングで最新の handleNextClick に差し替える
+  const handleNextRef = useRef(handleNextClick);
+  handleNextRef.current = handleNextClick;
+
+  /** 前へボタン (出題回数は加算しない) */
+  const handlePrevClick = () => {
+    setSession(goPrev(session));
+  };
+
+  /** 終了ボタン (中断。出題回数は加算しない) */
+  const handleExitClick = () => {
+    finish(interruptSession(session));
+  };
+
+  /** 「問題を非表示」チェック (次回以降の出題対象から外す) */
+  const handleHiddenChange = (isHidden: boolean) => {
+    setSession(setHidden(session, question.no, isHidden));
+  };
 
   return (
     <div
@@ -49,7 +201,7 @@ export const QuestionScreen = (props: QuestionScreenProps) => {
         <div className="flex items-center gap-3">
           <button
             id="btn-exit"
-            onClick={onExit}
+            onClick={handleExitClick}
             className="flex items-center gap-1.5 text-slate-500 hover:text-slate-800 text-xs font-bold bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg transition"
           >
             <ArrowLeft  className="w-4 h-4" />
@@ -174,21 +326,24 @@ export const QuestionScreen = (props: QuestionScreenProps) => {
               id="player-time-current"
               className="text-[10px] font-mono font-medium text-slate-400 w-8 text-right"
             >
-              0:00
+              {formatTime(currentTime)}
             </span>
             <input
               type="range"
               id="player-seekbar"
-              defaultValue="0"
-              min="0"
-              max="100"
-              className="flex-1 h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer"
+              value={currentTime}
+              min={0}
+              max={duration || 0}
+              step={0.1}
+              disabled={!isAudioAvailable}
+              onChange={(e) => seek(parseFloat(e.target.value))}
+              className="flex-1 h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
             />
             <span
               id="player-time-total"
               className="text-[10px] font-mono font-medium text-slate-400 w-8"
             >
-              0:03
+              {formatTime(duration)}
             </span>
           </div>
 
@@ -199,6 +354,8 @@ export const QuestionScreen = (props: QuestionScreenProps) => {
               <input
                 type="checkbox"
                 id="btn-hide-question"
+                checked={isHiddenInSession(session, question.no)}
+                onChange={(e) => handleHiddenChange(e.target.checked)}
                 className="rounded text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5"
               />
               <span className="text-xs font-semibold text-slate-600">
@@ -211,17 +368,25 @@ export const QuestionScreen = (props: QuestionScreenProps) => {
               <button
                 id="btn-restart"
                 title="先頭から再生"
-                className="p-2 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition"
+                onClick={handleRestartClick}
+                disabled={!isAudioAvailable}
+                className="p-2 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition disabled:opacity-40 disabled:pointer-events-none"
               >
                 <RotateCcw  className="w-4 h-4" />
               </button>
 
               <button
                 id="btn-play"
-                className="w-9 h-9 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full flex items-center justify-center shadow-md shadow-indigo-200 transition active:scale-95"
+                title={isPlaying ? "一時停止" : "再生"}
+                onClick={handlePlayPauseClick}
+                disabled={!isAudioAvailable}
+                className="w-9 h-9 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full flex items-center justify-center shadow-md shadow-indigo-200 transition active:scale-95 disabled:opacity-40 disabled:pointer-events-none"
               >
-                <Play id="icon-play"
-                  className="w-4 h-4 fill-white translate-x-0.5" />
+                {isPlaying ? (
+                  <Pause id="icon-play" className="w-4 h-4 fill-white" />
+                ) : (
+                  <Play id="icon-play" className="w-4 h-4 fill-white translate-x-0.5" />
+                )}
               </button>
             </div>
 
@@ -230,7 +395,8 @@ export const QuestionScreen = (props: QuestionScreenProps) => {
               <Gauge  className="w-3.5 h-3.5 text-slate-400" />
               <select
                 id="player-speed"
-                defaultValue={(item.playbackSpeed ?? 1.0).toFixed(1)}
+                value={playbackRate.toFixed(1)}
+                onChange={(e) => setPlaybackRate(Number(e.target.value))}
                 className="text-[11px] font-bold bg-transparent text-slate-600 focus:outline-none cursor-pointer"
               >
                 {SPEED_OPTIONS.map((speed) => (
@@ -247,7 +413,9 @@ export const QuestionScreen = (props: QuestionScreenProps) => {
         <div className="grid grid-cols-2 gap-3">
           <button
             id="btn-prev"
-            className="py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition flex items-center justify-center gap-1 active:scale-[0.98]"
+            onClick={handlePrevClick}
+            disabled={index === 0}
+            className="py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition flex items-center justify-center gap-1 active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none"
           >
             <ChevronLeft className="w-4 h-4" />
             前へ

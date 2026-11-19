@@ -3,16 +3,22 @@ import "./App.css";
 import { QuestionScreen } from "./features/question/QuestionScreen";
 import { TopScreen } from "./features/top/TopScreen";
 import type { Item } from "./types/Item";
-import type { Question } from "./types/Question";
+import type { SessionResult } from "./types/Session";
 import { getQuestions } from "./repositories/QuestionRepository";
-import { takeSessionQuestions } from "./features/question/logic/session";
+import { saveSession } from "./repositories/SessionRepository";
+import {
+  startSession,
+  toSessionResult,
+  type SessionState,
+} from "./features/question/logic/session";
+import { SaveErrorDialog } from "./components/SaveErrorDialog";
 import Loading from "./components/Loading";
 import { X } from "lucide-react";
 
-/** 表示中の画面. 問題画面のときだけ出題中のアイテムと問題を持つ */
+/** 表示中の画面. 問題画面のときだけ出題中のアイテムと開始時のセッションを持つ */
 type Screen =
   | { name: "top" }
-  | { name: "question"; item: Item; questions: Question[] };
+  | { name: "question"; item: Item; session: SessionState };
 
 /**
  * アプリのルート.
@@ -22,6 +28,10 @@ function App() {
   const [screen, setScreen] = useState<Screen>({ name: "top" });
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  // 書き戻しに失敗したときの、再試行する内容とエラー. null ならダイアログを出さない
+  const [saveError, setSaveError] = useState<{ result: SessionResult; message: string } | null>(
+    null,
+  );
 
   /**
    * 開始・再開ボタン押下時の処理.
@@ -29,19 +39,20 @@ function App() {
    * @param item 開始するアイテム
    * @param isResume true: 前回の続きから再開、false: 先頭から開始
    */
-  // TODO: 出題ロジック (quiz-logic) の実装時に isResume を使う
-  const handleStartClick = async (item: Item, _isResume: boolean) => {
+  const handleStartClick = async (item: Item, isResume: boolean) => {
     setIsLoading(true);
     setErrorMessage(null);
     try {
-      const eligibleQuestions = await getQuestions(item);
-      const questions = takeSessionQuestions(eligibleQuestions, item.questionCount);
-      if (questions.length === 0) {
+      // エクセルは開始のたびに読み直す (キャッシュしない)
+      const orderedQuestions = await getQuestions(item);
+      const session = startSession(orderedQuestions, item, isResume);
+      if (session === null) {
         setErrorMessage(`出題可能な問題がありません。`);
         return;
       }
-      console.log(`handleStartClick: ${questions.length}`)
-      setScreen({ name: "question", item, questions });
+
+      console.log(`handleStartClick: ${session.questions.length}`)
+      setScreen({ name: "question", item, session });
     } catch (error) {
       setErrorMessage(`問題一覧の取得に失敗しました: ${error}`);
     } finally {
@@ -50,10 +61,32 @@ function App() {
   };
 
   /**
-   * 問題画面の終了・完了時の処理.
-   * トップ画面へ戻る.
+   * 書き戻して、成功したらトップ画面へ戻る. 失敗したら再試行 / キャンセルのダイアログを出す.
    */
-  const handleExit = () => {
+  const save = async (result: SessionResult) => {
+    setIsLoading(true);
+    setSaveError(null);
+    try {
+      await saveSession(result);
+      setScreen({ name: "top" });
+    } catch (error) {
+      setSaveError({ result, message: String(error) });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  /**
+   * 問題画面の終了 (最後の問題で「次へ」・終了ボタン) 時の処理.
+   * セッションの結果をエクセルへまとめて 1 回書き戻してから、トップ画面へ戻る (spec 6).
+   */
+  const handleFinish = (item: Item, session: SessionState) => {
+    save(toSessionResult(session, item));
+  };
+
+  /** 書き戻し失敗ダイアログの「キャンセル」. 保存せずにトップ画面へ戻る */
+  const handleSaveCancel = () => {
+    setSaveError(null);
     setScreen({ name: "top" });
   };
 
@@ -63,9 +96,8 @@ function App() {
       {screen.name === "question" && (
         <QuestionScreen
           item={screen.item}
-          questions={screen.questions}
-          onExit={handleExit}
-          onComplete={handleExit}
+          initialSession={screen.session}
+          onFinish={(session) => handleFinish(screen.item, session)}
         />
       )}
       {errorMessage && (
@@ -79,6 +111,14 @@ function App() {
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
+      )}
+
+      {saveError && (
+        <SaveErrorDialog
+          errorMessage={saveError.message}
+          onRetry={() => save(saveError.result)}
+          onCancel={handleSaveCancel}
+        />
       )}
 
       {isLoading && <Loading />}

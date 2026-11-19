@@ -54,3 +54,23 @@ pub struct Question {
     pub memo: String,
     pub is_hidden: bool,
 }
+
+/// 書き戻す問題 1 件分の変更. 変わった項目だけ Some にする (None のセルは書かない).
+// Deserialize: フロントから受け取った JSON をこの構造体に変換できるようにする
+#[derive(Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct QuestionProgress {
+    pub no: u32,
+    pub asked_count: Option<u32>, // 出題回数 (E 列)
+    pub is_hidden: Option<bool>,  // 非表示 (I 列)
+}
+
+/// セッション終了時に書き戻す内容.
+#[derive(Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct SessionResult {
+    /// 設定シートに書き戻す値 (playCount・resumeNo・resumeOrder と、開始時の出題・再生設定)
+    pub item: Item,
+    /// 問題シートに書き戻す、変更のあった問題
+    pub progresses: Vec<QuestionProgress>,
+}
