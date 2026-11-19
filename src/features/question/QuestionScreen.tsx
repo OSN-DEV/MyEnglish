@@ -1,4 +1,4 @@
-import { ArrowLeft, ChevronLeft, ChevronRight, Eye, Gauge, Pause, Play, RotateCcw, StickyNote } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, Gauge, Pause, Play, RotateCcw, StickyNote } from "lucide-react";
 import type { Item } from "../../types/Item";
 import { useEffect, useRef, useState } from "react";
 import { SPEED_OPTIONS } from "../../constants";
